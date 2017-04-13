@@ -6,9 +6,10 @@
  robust as those other frameworks - some runtime errors will shut the
  test suite down with no final report.
  
- # Usage
+# Usage
  
- The framework consists of a single .h and .cpp file that can be dropped into
+ The framework consists of a two files, `unittest.h` and `unittest.cpp`,
+ that can be dropped into
  a C++ project directory, allowing the creation of a unit test suite.
  
  A test suite consists of a collection of unit test functions, which can
@@ -74,3 +75,29 @@ would run only the second test above, but any of the following
       ./unittest
  
 would run both tests.
+
+
+# Compiling Unit Tests
+
+If your project has its own `main()` function, be aware that this
+adds another one to your project. The default project managers in
+many C++ IDEs will not know how to handle projects with more than
+one `main()` function and will report errors when trying to link
+the code.   Workarounds:
+
+* If your IDE has an option for using `make` in place of its
+  default project manager, you can construct a makefile to
+  build both executables (the "real" project and the unit test)
+  separately.
+
+* You may be able to put the `unittest.*` files in a subdirectory
+  of the main project and create a new IDE project in that subdirectory,
+  sharing the non-`main()` project source files from the parent directory
+  with the new unit test project.
+
+This framework uses threads to implement a time-out function for tests
+of buggy code that may be caught in an infinite loop. On Unix-based
+`g++` systems, this requires adding -pthread` as a command option in the
+final linkage step, e.g.,
+
+    g++ -o unittest -g unittest.o adt1.o adt2.o -pthread
