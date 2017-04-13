@@ -1,0 +1,16 @@
+stages:
+  - build
+ 
+build-job:
+  tags:
+    - e-3208
+  stage: build
+  script:
+    - echo OK
+  only:
+    - master
+  artifacts:
+    paths:
+       - README.md
+       - unittest.h
+       - unittest.cpp
