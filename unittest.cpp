@@ -8,6 +8,11 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <signal.h>
+#include <setjmp.h>
+#include <cstdlib>
+
+
 #include "unittest.h"
 
 using namespace std;
@@ -80,6 +85,13 @@ int UnitTest::registerUT (std::string functName, int timeLimit, TestFunction fun
 	return 0;
 }
 
+jmp_buf unitTestSignalEnv;
+int unitTestLastSignal = 0;
+
+void unitTestSignalHandler(int sig) {
+	unitTestLastSignal = sig;
+	longjmp (unitTestSignalEnv, sig);
+}
 
 int UnitTest::runTestGuarded (std::string testName, TestFunction u,
 		std::string& testExplanation)
@@ -87,8 +99,19 @@ int UnitTest::runTestGuarded (std::string testName, TestFunction u,
 	currentTest = testName;
 	cerr << testName << ": " << flush;
 	try {
-		u();
-		cerr << "OK" << endl;
+		   signal(SIGFPE, &unitTestSignalHandler);
+		   signal(SIGSEGV, &unitTestSignalHandler);
+		   if (setjmp(unitTestSignalEnv)) {
+				cerr << "failed" << endl;
+				++numFailures;
+				ostringstream out;
+				out << "runtime error " << unitTestLastSignal;
+			    testExplanation =  out.str();
+			    return -1;
+		   } else {
+		     u();
+		     cerr << "OK" << endl;
+		   }
 		return 1;
 	} catch (UnitTestFailure& ex) {
 		cerr << "failed" << endl;
