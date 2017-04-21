@@ -87,6 +87,9 @@ private:
 public:
   typedef void (*TestFunction)();
 
+  /**
+   * Exception thrown to indicate a failed assertion.
+   */
   class UnitTestFailure: public std::exception {
 	  std::string explanation;
   public:
@@ -96,41 +99,115 @@ public:
 	  virtual const char* what() const noexcept;
   };
 
-  // The main test function - normally called via one of the macros
-  // declared following this class.
+  /**
+   * The main test function - normally called via one of the macros
+   * declared following this class.  Does nothing if the assertion
+   * was passed, but throws an exception if the assertion was failed.
+   *
+   * @param condition the assertion condition, true iff passed.
+   * @param conditionStr a string rendering of the assertion condition.
+   * @param fileName Source code file in which the assertion occurs,
+   * @param lineNumber Source code line number at which the assertion occurs,
+   * @throws UnitTestFailure  if condition is false.
+   */
   static void checkTest (bool condition, const char* conditionStr,
 			 const char* fileName, int lineNumber);
+  /**
+   * The main test function - normally called via one of the macros
+   * declared following this class.  Does nothing if the assertion
+   * was passed, but throws an exception if the assertion was failed.
+   *
+   * @param condition the assertion condition, true iff passed.
+   * @param conditionStr a string rendering of the assertion condition.
+   * @param fileName Source code file in which the assertion occurs,
+   * @param lineNumber Source code line number at which the assertion occurs,
+   * @throws UnitTestFailure  if condition is false.
+   */
   static void checkTest (bool condition, const std::string& conditionStr,
 			 const char* fileName, int lineNumber);
 
 
   // Summary info about tests conducted so far
+
+  /**
+   * How many tests have been run?
+   *
+   * @return number of tests.
+   */
   static long getNumTests()     {return numSuccesses + numFailures;} 
+
+  /**
+   * How many tests were terminated by a failed assertion?
+   *
+   * @return number of failed tests.
+   */
   static long getNumFailures()  {return numFailures;} 
+
+  /**
+   * How many tests were terminated by an unexpected exception,
+   * run-time error, or time-out?
+   *
+   * @return number of uncompleted tests.
+   */
   static long getNumErrors()  {return numErrors;}
+
+  /**
+   * How many tests terminated successfully?
+   *
+   * @return number of passed tests.
+   */
   static long getNumSuccesses() {return numSuccesses;} 
   
 
-  // Default time limit for a test
+  /**
+   * Set the default time limit for subsequent tests.
+   *
+   * @param timeInMilliSeconds time permitted before a test will
+   *          be forcibly terminated.
+   */
   static void setTimeLimit (int timeInMilliSeconds) {
 	  timeoutInMilliSec = timeInMilliSeconds;}
 
+  /**
+   * Get the default time limit for subsequent tests.
+   *
+   * @return time permitted before a test will
+   *          be forcibly terminated.
+   */
   static int getTimeLimit() {return timeoutInMilliSec;}
 
-
-  // Run all units tests whose name contains testNames[i],
-  // 0 <= i <= nTests
-  //
-  // Special case: If nTests == 0, runs all unit Tests.
+  /**
+   * Run all units tests whose name contains testNames[i],
+   * for all i in 0..nTests-1.
+   *
+   * Special case: If nTests == 0, runs all unit Tests.
+   *
+   * @param nTests number of test name substrings
+   * @param testNames  array of possible substrings of test names
+   */
   static void runTests (int nTests, char** testNames);
 
-  // Print a simple summary report
+  /**
+   * Print a simple summary report. Includes number of tests passed,
+   * failed, and erroneously termnated.
+   *
+   * @param out stream to which to write the report
+   */
   static void report (std::ostream& out);
 
-  // Register a new UnitTest
+  /**
+   * Register a new UnitTest, making it eligible for running.
+   *
+   * @param functName name of the test function.
+   * @param timeLimit time limit in milliseconds
+   * @param funct the unit test function
+   */
   static int registerUT (std::string functName, int timeLimit, TestFunction funct);
 
 private:
+  /**
+   * Internal container for test functions and their associated time limits.
+   */
   struct BoundedTest {
 	  int timeLimit;
 	  TestFunction unitTest;

@@ -1,0 +1,6 @@
+/make.dep
+*.o
+*.d
+make.dep
+*~
+/docs/
