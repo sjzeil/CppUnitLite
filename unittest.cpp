@@ -25,6 +25,7 @@ long UnitTest::numErrors = 0L;
 string UnitTest::currentTest;
 int UnitTest::timeoutInMilliSec = 500;
 bool UnitTest::expectToFail = false;
+std::vector<std::string> UnitTest::callLog;
 
 UnitTest::UnitTestFailure::UnitTestFailure (
 		const char* conditionStr,
@@ -278,6 +279,43 @@ void UnitTest::runTests (int nTests, char** testNames)
 		BoundedTest test = (*tests)[testName];
 		runTest (testName, test.unitTest, test.timeLimit);
 	}
+}
+
+
+/**
+ * Clear the call log.
+ */
+void UnitTest::clearCallLog()
+{
+	callLog.clear();
+}
+
+/**
+ * Position of oldest logged call.
+ */
+UnitTest::iterator UnitTest::begin()
+{
+	return callLog.begin();
+}
+
+/**
+ * Position just after the most recently logged call.
+ */
+UnitTest::iterator UnitTest::end()
+{
+	return callLog.end();
+}
+
+
+
+/**
+ * Log a call to a zero-parameter function.
+ *
+ * @param functionName name of the function
+ */
+void UnitTest::logCall (const std::string& functionName)
+{
+	callLog.push_back (functionName);
 }
 
 

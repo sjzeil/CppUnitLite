@@ -2,12 +2,14 @@
  *  Unit test of the unit test framework
  */
 
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <string>
 
 #include "unittest.h"
 
+using namespace std;
 
 UnitTest(testCheckTestPass) {
 	UnitTest::checkTest (true, "t1", "fileName", 42);
@@ -81,6 +83,40 @@ UnitTestTimed(testTimeout1,100) {
 #endif
 }
 
+void foo() {
+	UnitTest::logCall("foo");
+}
+
+void bar(int a) {
+	UnitTest::logCall("bar", a);
+}
+
+void baz(int a, bool b) {
+	UnitTest::logCall("baz", a, b);
+}
+
+void foo(int a, bool b, std::string c) {
+	UnitTest::logCall("foo", a, b, c);
+}
+
+void bar(int a, bool b, std::string c, double d) {
+	UnitTest::logCall("bar", a, b, c, d);
+}
 
 
+UnitTest(testLogging) {
+	foo();
+	assertEqual (1, distance(UnitTest::begin(), UnitTest::end()));
+	assertNotEqual (UnitTest::end(), find(UnitTest::begin(), UnitTest::end(), "foo"));
+	UnitTest::clearCallLog();
+	bar(21);
+	baz(22, true);
+	foo(23, false, "hello");
+	bar(24, false, "hello", 1.0);
+
+	assertEqual (4, distance(UnitTest::begin(), UnitTest::end()));
+	string expected[] = {"bar\t21", "baz\t22\t1", "foo\t23\t0\thello", "bar\t24\t0\thello\t1"};
+	assertTrue (equal(UnitTest::begin(), UnitTest::end(), expected));
+
+}
 

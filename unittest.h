@@ -1,9 +1,11 @@
 #ifndef UNITTEST_H
 #define UNITTEST_H
 
+#include <exception>
 #include <string>
 #include <map>
-#include <exception>
+#include <sstream>
+#include <vector>
 
 /**
  *  This class helps support self-checking unit tests.
@@ -83,6 +85,8 @@ private:
 	static long numErrors;
 	static std::string currentTest;
 	static int timeoutInMilliSec;
+
+	static std::vector<std::string> callLog;
 
 public:
 	typedef void (*TestFunction)();
@@ -212,6 +216,125 @@ public:
 	 * Must be called before any assertions.
 	 */
 	static void expectedToFail();
+
+	/* ********************************************************
+	 * The call log is intended as an aid in writing stubs.
+	 * ********************************************************/
+
+	typedef std::vector<std::string>::const_iterator const_iterator;
+	typedef std::vector<std::string>::const_iterator iterator;
+
+	/**
+	 * Clear the call log.
+	 */
+	static void clearCallLog();
+
+	/**
+	 * Position of oldest logged call.
+	 */
+	static iterator begin();
+
+	/**
+	 * Position just after the most recently logged call.
+	 */
+	static iterator end();
+
+
+	/**
+	 * Log a call to a zero-parameter function.
+	 *
+	 * @param functionName name of the function
+	 */
+	static void logCall (const std::string& functionName);
+
+	/**
+	 * Log a call to a function with one parameter.
+	 *
+	 * Parameter types must support operator<<
+	 *
+	 * @param functionName name of the function
+	 * @param arg1 a parameter to the function call
+	 */
+	template <typename T1>
+	static void logCall (const std::string& functionName, const T1& arg1)
+	{
+		using namespace std;
+		ostringstream out;
+		out << functionName;
+		out << "\t" << arg1;
+		logCall (out.str());
+	}
+
+	/**
+	 * Log a call to a function with two parameters.
+	 *
+	 * Parameter types must support operator<<
+	 *
+	 * @param functionName name of the function
+	 * @param arg1 a parameter to the function call
+	 * @param arg2 a parameter to the function call
+	 */
+	template <typename T1, typename T2>
+	static void logCall (const std::string& functionName,
+			const T1& arg1, const T2& arg2)
+	{
+		using namespace std;
+		ostringstream out;
+		out << functionName;
+		out << "\t" << arg1;
+		out << "\t" << arg2;
+		logCall (out.str());
+	}
+
+	/**
+	 * Log a call to a function with three parameters.
+	 *
+	 * Parameter types must support operator<<
+	 *
+	 * @param functionName name of the function
+	 * @param arg1 a parameter to the function call
+	 * @param arg2 a parameter to the function call
+	 * @param arg3 a parameter to the function call
+	 */
+	template <typename T1, typename T2, typename T3>
+	static void logCall (const std::string& functionName,
+			const T1& arg1, const T2& arg2, const T3& arg3)
+	{
+		using namespace std;
+		ostringstream out;
+		out << functionName;
+		out << "\t" << arg1;
+		out << "\t" << arg2;
+		out << "\t" << arg3;
+		logCall (out.str());
+	}
+
+
+	/**
+	 * Log a call to a function with four parameters.
+	 *
+	 * Parameter types must support operator<<
+	 *
+	 * @param functionName name of the function
+	 * @param arg1 a parameter to the function call
+	 * @param arg2 a parameter to the function call
+	 * @param arg3 a parameter to the function call
+	 * @param arg4 a parameter to the function call
+	 */
+	template <typename T1, typename T2, typename T3, typename T4>
+	static void logCall (const std::string& functionName,
+			const T1& arg1, const T2& arg2, const T3& arg3, const T4& arg4)
+	{
+		using namespace std;
+		ostringstream out;
+		out << functionName;
+		out << "\t" << arg1;
+		out << "\t" << arg2;
+		out << "\t" << arg3;
+		out << "\t" << arg4;
+		logCall (out.str());
+	}
+
 
 	private:
 	/**
