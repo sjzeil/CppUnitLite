@@ -1,5 +1,15 @@
+CC=gcc
+CXX=g++
+#
+UsingMinGW=$(shell $(CXX) -v 2>&1 | grep "^Target: mingw" | wc -l)
+ifeq ($(UsingMinGW), 1)
+CPPFLAGS=-g -std=c++11
+LFLAGS=
+else
 CPPFLAGS=-g -std=c++11
 LFLAGS=-pthread
+endif
+
 #
 ########################################################################
 # Macro definitions for "standard" C and C++ compilations
@@ -9,8 +19,6 @@ TARGET=testUnitTest
 CPPS=$(wildcard *.cpp)
 LINK=g++ $(CPPFLAGS)
 #
-CC=gcc
-CXX=g++
 #
 #
 #  In most cases, you should not change anything below this line.
@@ -38,7 +46,10 @@ DEPENDENCIES = $(CPPS:%.cpp=%.d)
 $(TARGET): $(OBJS)
 	$(LINK) $(FLAGS) -o $(TARGET) $^ $(LFLAGS)
 
-all: $(TARGET) documentation
+
+
+
+all: $(TARGET)
 	./$(TARGET)
 
 clean:

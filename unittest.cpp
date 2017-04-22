@@ -24,18 +24,22 @@ long UnitTest::numFailures = 0L;
 long UnitTest::numErrors = 0L;
 string UnitTest::currentTest;
 int UnitTest::timeoutInMilliSec = 500;
-
+bool UnitTest::expectToFail = false;
 
 UnitTest::UnitTestFailure::UnitTestFailure (
 		const char* conditionStr,
 		const char* fileName, int lineNumber)
 {
-	ostringstream out;
-	out << "Failed assertion " << conditionStr
-			<< " in " << currentTest
-			<< " at " << fileName << ", line "
-			<< lineNumber;
-	explanation = out.str();
+	if (!UnitTest::expectToFail) {
+		ostringstream out;
+		out << "Failed assertion " << conditionStr
+				<< " in " << currentTest
+				<< " at " << fileName << ", line "
+				<< lineNumber;
+		explanation = out.str();
+	} else {
+		explanation = "(expected to fail)";
+	}
 }
 
 const char* UnitTest::UnitTestFailure::what() const noexcept {
@@ -97,38 +101,77 @@ int UnitTest::runTestGuarded (std::string testName, TestFunction u,
 		std::string& testExplanation)
 {
 	currentTest = testName;
+	expectToFail = false;
 	cerr << testName << ": " << flush;
 	try {
-		   signal(SIGFPE, &unitTestSignalHandler);
-		   signal(SIGSEGV, &unitTestSignalHandler);
-		   if (setjmp(unitTestSignalEnv)) {
-				cerr << "failed" << endl;
-				++numFailures;
-				ostringstream out;
-				out << "runtime error " << unitTestLastSignal;
-			    testExplanation =  out.str();
-			    return -1;
-		   } else {
-		     u();
-		     cerr << "OK" << endl;
-		   }
+		signal(SIGFPE, &unitTestSignalHandler);
+		signal(SIGSEGV, &unitTestSignalHandler);
+		if (setjmp(unitTestSignalEnv)) {
+			// Runtime error was caught
+			if (!expectToFail) {
+			cerr << "failed" << endl;
+			ostringstream out;
+			out << "runtime error " << unitTestLastSignal;
+			testExplanation =  out.str();
+			return -1;
+			} else {
+				cerr << "OK (failed but was expected to fail)" << endl;
+			}
+		} else {
+			u();
+			if (!expectToFail) {
+				cerr << "OK" << endl;
+			} else {
+				cerr << "Failed (passed but was expected to fail)" << endl;
+				return 0;
+			}
+		}
 		return 1;
 	} catch (UnitTestFailure& ex) {
-		cerr << "failed" << endl;
-		++numFailures;
-		testExplanation = ex.what();
-		return 0;
+		if (!expectToFail) {
+			cerr << "failed" << endl;
+			testExplanation = ex.what();
+			return 0;
+		} else {
+			cerr << "OK (failed but was expected to fail)" << endl;
+			return 1;
+		}
 	} catch (exception& e) {
-		cerr << "halted" << endl;
-		testExplanation = "Unexpected error in " + currentTest
-				+ ": " + e.what();
-		return -1;
+		if (!expectToFail) {
+			cerr << "halted" << endl;
+			testExplanation = "Unexpected error in " + currentTest
+					+ ": " + e.what();
+			return -1;
+		} else {
+			cerr << "OK (exception but was expected to fail)" << endl;
+			return 1;
+		}
 	} catch (...) {
-		cerr << "halted" << endl;
-		testExplanation = "Unexpected error in " + currentTest;
-		return -1;
+		if (!expectToFail) {
+			cerr << "halted" << endl;
+			testExplanation = "Unexpected error in " + currentTest;
+			return -1;
+		} else {
+			cerr << "OK (exception but was expected to fail)" << endl;
+			return 1;
+		}
 	}
 }
+
+/**
+ * Reverses the expectation for the current test.  A test that fails or halts
+ * with an error will be reported and counted as OK.  If that test succeeds,
+ * it will be reported and counted as an error.
+ *
+ * Must be called before any assertions.
+ */
+void UnitTest::expectedToFail()
+{
+	expectToFail = true;
+}
+
+
+#ifndef __MINGW32__
 
 // Run a single unit test function.
 void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
@@ -172,6 +215,40 @@ void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
 
 }
 
+#else
+
+// Run a single unit test function.
+void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
+{
+	int testResult; // 1== passed, 0 == failed, -1 == erro
+	string testExplanation;
+
+	// No time-out supported if compiler does not have thread support.
+	testResult = runTestGuarded (testName, u, testExplanation);
+
+	try {
+		// Normal exit
+		if (testResult == 1) {
+			++numSuccesses;
+		} else if (testResult == 0) {
+			++numFailures;
+			cerr << testExplanation << endl;
+		} else if (testResult == -1) {
+			++numErrors;
+			cerr << testExplanation << endl;
+		}
+	} catch (std::runtime_error& e) {
+		++numErrors;
+		cerr << "Test " << currentTest << " still running after "
+				<< timeoutInMilliSec
+				<< " milliseconds - possible infinite loop?"
+				<< endl;
+	}
+
+
+}
+
+#endif
 
 
 // Run all units tests whose name contains testNames[i],
