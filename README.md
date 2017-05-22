@@ -42,7 +42,7 @@ For example, a unit test of a simple "counter" class might look like:
          assertFalse (x.isZero());
      }
  
-     UnitTestTimed (testIncrement, 100) // Limited to 100ms
+     UnitTestTimed (testIncrement, 100L) // Limited to 100ms
      {
          MyClass x (23);
          x.increment();
@@ -51,7 +51,15 @@ For example, a unit test of a simple "counter" class might look like:
          assertEqual (25, x.getValue());
      }
  
- The unittest.cpp includes a main() function to drive the tests.  When
+     UnitTestTimed (longTest, -1L) // No timer: will never time out
+     {
+         MyClass x (23);
+	     for (int i = 0; i < 10000; ++i)
+              x.increment();
+         assertEqual (10023, x.getValue());
+     }
+
+The unittest.cpp includes a main() function to drive the tests.  When
  run with no command-line parameters, all unit test functions are run.
  If command-line parameters are provided, they provide a list of test
  function names to indicate which tests to run.  Specifically,
@@ -70,11 +78,11 @@ or
 
 would run only the second test above, but any of the following
 
-      ./unittest testConstructor testIncrement
-      ./unittest test
+      ./unittest testConstructor testIncrement longTest
+      ./unittest est
       ./unittest
  
-would run both tests.
+would run all three tests.
 
 
 # Compiling Unit Tests
