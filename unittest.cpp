@@ -23,7 +23,7 @@ long UnitTest::numSuccesses = 0L;
 long UnitTest::numFailures = 0L;
 long UnitTest::numErrors = 0L;
 string UnitTest::currentTest;
-int UnitTest::timeoutInMilliSec = 500;
+long UnitTest::timeoutInMilliSec = 500L;
 bool UnitTest::expectToFail = false;
 std::vector<std::string> UnitTest::callLog;
 
@@ -171,55 +171,8 @@ void UnitTest::expectedToFail()
 	expectToFail = true;
 }
 
-
-#ifndef __MINGW32__
-
-// Run a single unit test function.
-void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
-{
-	int testResult; // 1== passed, 0 == failed, -1 == erro
-	string testExplanation;
-
-	std::mutex m;
-	std::condition_variable cv;
-	chrono::duration<int,std::milli> limit (timeLimit);
-
-	std::thread t([&m, &cv, &testName, &u, &testResult, &testExplanation](){
-		testResult = runTestGuarded (testName, u, testExplanation);
-		cv.notify_one();
-	});
-	t.detach();
-
-	try {
-		std::unique_lock<std::mutex> l(m);
-		if(cv.wait_for(l, limit) == std::cv_status::timeout)
-			throw std::runtime_error("Timeout");
-
-		// Normal exit
-		if (testResult == 1) {
-			++numSuccesses;
-		} else if (testResult == 0) {
-			++numFailures;
-			cerr << testExplanation << endl;
-		} else if (testResult == -1) {
-			++numErrors;
-			cerr << testExplanation << endl;
-		}
-	} catch (std::runtime_error& e) {
-		++numErrors;
-		cerr << "Test " << currentTest << " still running after "
-				<< timeoutInMilliSec
-				<< " milliseconds - possible infinite loop?"
-				<< endl;
-	}
-
-
-}
-
-#else
-
-// Run a single unit test function.
-void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
+// Run a single unit test function with no timer.
+void UnitTest::runTestUntimed (std::string testName, TestFunction u)
 {
 	int testResult; // 1== passed, 0 == failed, -1 == erro
 	string testExplanation;
@@ -247,6 +200,65 @@ void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
 	}
 
 
+}
+
+
+#ifndef __MINGW32__
+
+// Run a single unit test function.
+void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
+{
+	if (timeoutInMilliSec > 0L)
+	{
+		int testResult; // 1== passed, 0 == failed, -1 == erro
+		string testExplanation;
+
+		std::mutex m;
+		std::condition_variable cv;
+		chrono::duration<int,std::milli> limit (timeLimit);
+
+		std::thread t([&m, &cv, &testName, &u, &testResult, &testExplanation](){
+			testResult = runTestGuarded (testName, u, testExplanation);
+			cv.notify_one();
+		});
+		t.detach();
+
+		try {
+			std::unique_lock<std::mutex> l(m);
+			if(cv.wait_for(l, limit) == std::cv_status::timeout)
+				throw std::runtime_error("Timeout");
+
+			// Normal exit
+			if (testResult == 1) {
+				++numSuccesses;
+			} else if (testResult == 0) {
+				++numFailures;
+				cerr << testExplanation << endl;
+			} else if (testResult == -1) {
+				++numErrors;
+				cerr << testExplanation << endl;
+			}
+		} catch (std::runtime_error& e) {
+			++numErrors;
+			cerr << "Test " << currentTest << " still running after "
+					<< timeoutInMilliSec
+					<< " milliseconds - possible infinite loop?"
+					<< endl;
+		}
+	}
+	else
+	{
+		runTestUntimed (testName, u);
+	}
+
+}
+
+#else
+
+// Run a single unit test function.
+void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
+{
+	runTestUntimed (testName, u);
 }
 
 #endif

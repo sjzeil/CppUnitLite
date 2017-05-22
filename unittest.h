@@ -84,7 +84,7 @@ private:
 	static long numFailures;
 	static long numErrors;
 	static std::string currentTest;
-	static int timeoutInMilliSec;
+	static long timeoutInMilliSec;
 
 	static std::vector<std::string> callLog;
 
@@ -168,9 +168,12 @@ public:
 	 *
 	 * @param timeInMilliSeconds time permitted before a test will
 	 *          be forcibly terminated.
+	 *          If zero or negative, the time-out function is disabled and
+	 *          tests will never be terminated due to timing out.
 	 */
-	static void setTimeLimit (int timeInMilliSeconds) {
-		timeoutInMilliSec = timeInMilliSeconds;}
+	static long setTimeLimit (long timeInMilliSeconds) {
+		timeoutInMilliSec = timeInMilliSeconds;
+	    return timeoutInMilliSec;}
 
 	/**
 	 * Get the default time limit for subsequent tests.
@@ -351,6 +354,7 @@ public:
 	static bool expectToFail;
 
 	static void runTest(std::string testName, TestFunction u, int timeLimitInMS);
+	static void runTestUntimed(std::string testName, TestFunction u);
 	static int runTestGuarded(std::string testName, TestFunction u,
 			std::string& msg);
 };
