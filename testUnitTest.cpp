@@ -11,6 +11,7 @@
 
 using namespace std;
 
+
 UnitTest(testCheckTestPass) {
 	UnitTest::checkTest (true, "t1", "fileName", 42);
 }
@@ -83,6 +84,25 @@ UnitTestTimed(testTimeout1,100) {
 #endif
 }
 
+// Example of overriding default limit
+#define DEFAULT_UNIT_TEST_TIME_LIMIT 1000L
+
+UnitTest(testTimeoutDefaultLimit) {
+#ifndef __MINGW32__
+	UnitTest::expectedToFail();
+	long k = 0;
+	for (int i = 0; i < 100000; ++i) {
+		++k;
+		for (int j = 0; j < 100000; ++j) {
+			++k;
+		}
+	}
+#else
+	std::cerr << "Timeouts cannot be detected in compilers with no thread support"
+			<< std::endl;
+	UnitTest::fail;
+#endif
+}
 void foo() {
 	UnitTest::logCall("foo");
 }

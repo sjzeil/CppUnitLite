@@ -7,6 +7,24 @@
 #include <sstream>
 #include <vector>
 
+
+/**
+ * Time limit, in milliseconds, before a test function is killed
+ * on suspicion of the code under test having gone into an infinite loop.
+ *
+ * Affects all subsequent UniTest(...) declarations, but is ignored by
+ * any UnitTestTimed(...) declarations (because they supply their own
+ * time limit, overriding the default).
+ *
+ * Note that a non-positive value for this time limit suppresses the timing
+ * check entirely. This may be useful as a way of "stopping the clock"
+ * when debugging failed tests.
+ */
+#define DEFAULT_UNIT_TEST_TIME_LIMIT 500L
+
+
+
+
 /**
  *  This class helps support self-checking unit tests.
  *
@@ -77,14 +95,12 @@
  * would run both tests.
  *
  */
-
 class UnitTest {
 private:
 	static long numSuccesses;
 	static long numFailures;
 	static long numErrors;
 	static std::string currentTest;
-	static long timeoutInMilliSec;
 
 	static std::vector<std::string> callLog;
 
@@ -163,25 +179,6 @@ public:
 	static long getNumSuccesses() {return numSuccesses;}
 
 
-	/**
-	 * Set the default time limit for subsequent tests.
-	 *
-	 * @param timeInMilliSeconds time permitted before a test will
-	 *          be forcibly terminated.
-	 *          If zero or negative, the time-out function is disabled and
-	 *          tests will never be terminated due to timing out.
-	 */
-	static long setTimeLimit (long timeInMilliSeconds) {
-		timeoutInMilliSec = timeInMilliSeconds;
-	    return timeoutInMilliSec;}
-
-	/**
-	 * Get the default time limit for subsequent tests.
-	 *
-	 * @return time permitted before a test will
-	 *          be forcibly terminated.
-	 */
-	static int getTimeLimit() {return timeoutInMilliSec;}
 
 	/**
 	 * Run all units tests whose name contains testNames[i],
@@ -353,7 +350,7 @@ public:
 	static std::map<std::string, BoundedTest> *tests;
 	static bool expectToFail;
 
-	static void runTest(std::string testName, TestFunction u, int timeLimitInMS);
+	static void runTest(std::string testName, TestFunction u, long timeLimitInMS);
 	static void runTestUntimed(std::string testName, TestFunction u);
 	static int runTestGuarded(std::string testName, TestFunction u,
 			std::string& msg);
@@ -385,8 +382,7 @@ public:
  * Test registration
  */
 
-#define UnitTest(functName) void functName(); int functName ## dummy = \
-		UnitTest::registerUT(#functName, UnitTest::getTimeLimit(), &functName); void functName()
+#define UnitTest(functName) UnitTestTimed(functName, DEFAULT_UNIT_TEST_TIME_LIMIT)
 
 #define UnitTestTimed(functName, limit) void functName(); int functName ## dummy = \
 		UnitTest::registerUT(#functName, limit, &functName); void functName()

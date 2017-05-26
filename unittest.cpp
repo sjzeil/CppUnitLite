@@ -23,7 +23,6 @@ long UnitTest::numSuccesses = 0L;
 long UnitTest::numFailures = 0L;
 long UnitTest::numErrors = 0L;
 string UnitTest::currentTest;
-long UnitTest::timeoutInMilliSec = 500L;
 bool UnitTest::expectToFail = false;
 std::vector<std::string> UnitTest::callLog;
 
@@ -193,9 +192,8 @@ void UnitTest::runTestUntimed (std::string testName, TestFunction u)
 		}
 	} catch (std::runtime_error& e) {
 		++numErrors;
-		cerr << "Test " << currentTest << " still running after "
-				<< timeoutInMilliSec
-				<< " milliseconds - possible infinite loop?"
+		cerr << "Test " << currentTest << " failed due to "
+				<< e.what()
 				<< endl;
 	}
 
@@ -206,9 +204,9 @@ void UnitTest::runTestUntimed (std::string testName, TestFunction u)
 #ifndef __MINGW32__
 
 // Run a single unit test function.
-void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
+void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 {
-	if (timeoutInMilliSec > 0L)
+	if (timeLimit > 0L)
 	{
 		int testResult; // 1== passed, 0 == failed, -1 == erro
 		string testExplanation;
@@ -241,7 +239,7 @@ void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
 		} catch (std::runtime_error& e) {
 			++numErrors;
 			cerr << "Test " << currentTest << " still running after "
-					<< timeoutInMilliSec
+					<< timeLimit
 					<< " milliseconds - possible infinite loop?"
 					<< endl;
 		}
