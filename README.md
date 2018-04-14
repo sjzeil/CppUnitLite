@@ -2,15 +2,15 @@
 
  This is a lightweight framework similar in spirit to JUnit (for Java),
  Google Test, and Boost Test, but which can be added to a project by the
- simple addition of the two unittest.h and unittest.cpp files.  It's not as
+ simple addition of the two files, unittest.h and unittest.cpp.  It's not as
  robust as those other frameworks - some runtime errors will shut the
  test suite down with no final report.
  
 # Usage
  
  The framework consists of a two files, `unittest.h` and `unittest.cpp`,
- that can be dropped into
- a C++ project directory, allowing the creation of a unit test suite.
+ that can be dropped into a C++ project directory, allowing the creation of
+ a unit test suite.
  
  A test suite consists of a collection of unit test functions, which can
  be distributed among multiple .cpp files. (Typically one such file
@@ -21,7 +21,11 @@
  
  Each unit test function can contain code to set up parameters, invoke
  the function(s) being tested, and to evaluate the results of those
- function calls via the use of assertions:
+ function calls via the use of assertions. Most assertions have the form:
+ 
+    assertThat (value, matcher);
+ 
+ although the following "old-fashioned" assertions are also supported.
  
        assertTrue (condition);
        assertFalse (condition);
@@ -30,7 +34,72 @@
        assertNull (expression);
        assertNotNull (expression);
 
-For example, a unit test of a simple "counter" class might look like:
+The assertThat form, however, allows for a much wider and expressive range of
+tests:
+
+## Relational Matchers
+
+    assertThat(x, isEqualTo(y));
+    assertThat(x, is(y));  // same as isEqualTo
+    assertThat(x, isNotEqualTo(y));
+    assertThat(x, isNot(y));  // same as isNotEqualTo
+
+    assertThat(x, isOneOf(w, y, z));  // Allows 1 or more options
+    
+    assertThat(x, isLessThan(y));
+    assertThat(x, isGreaterThan(y));
+    assertThat(x, isLessThanOrEqualTo(y));
+    assertThat(x, isGreaterThanOrEqualTo(y));
+
+## String Matchers
+
+    assertThat(str, contains("bc"));
+    assertThat(str, beginsWith(str2));
+    assertThat(str, endsWith(str2));
+    assertThat(str, startsWith(str2)); // same as beginsWith
+
+## Pointer Matchers
+
+    assertThat(p, isNull());
+    assertThat(q, isNotNull());
+
+## Container Matchers
+
+(These apply to std::array, vector, list, deque, set, map, and, in general,
+ anything that provides begin() and end() functions.)
+  
+    assertThat(v, contains(3));
+    assertThat(v, hasItem(x));  // Same as contains
+
+    assertThat(L, hasItems(3, 9)); // Allows one or more values
+
+    assertThat(range(v.begin(), v.end()), hasItem(z)); 
+
+
+    assertThat(x, isIn(v));
+    assertThat(x, isInRange(v.begin(), v.end()));
+
+### Associative Container Matchers
+
+These will give better performance when used with std sets and maps.
+
+    assertThat(aSet, hasKey(3));
+    assertThat(aSet, hasKeys(3, 5));  // allows one or more values
+    assertThat(aMap, hasEntry(5, 10));
+
+## Combining Matchers
+
+    assertThat(x, !(matcher));  // Negate a matcher
+
+    assertThat(x, allOf(isLessThan(42), isGreaterThan(10), is(23))); // All must be true
+
+    assertThat(23, anyOf(isLessThan(42), isGreaterThan(10))); // One or more must be true
+
+# Example
+
+## Writing A Unit Test
+
+A unit test of a simple "counter" class might look like:
 
      #include "unittest.h"
      #include "myCounter.h"
@@ -38,17 +107,18 @@ For example, a unit test of a simple "counter" class might look like:
      UnitTest (testConstructor)
      {
          MyClass x (23);
-         assertEqual (23, x.getValue());
-         assertFalse (x.isZero());
+         assertThat (x.getValue(), is(23));
+         assertThat (x.isZero(), is(true));
+         assertTrue (x.isZero()); // older style
      }
  
      UnitTestTimed (testIncrement, 100L) // Limited to 100ms
      {
          MyClass x (23);
          x.increment();
-         assertEqual (24, x.getValue());
+         assertThat (x.getValue(), is(24));
          x.increment();
-         assertEqual (25, x.getValue());
+         assertThat (x.getValue(), is(25));
      }
  
      UnitTestTimed (longTest, -1L) // No timer: will never time out
@@ -56,8 +126,10 @@ For example, a unit test of a simple "counter" class might look like:
          MyClass x (23);
 	     for (int i = 0; i < 10000; ++i)
               x.increment();
-         assertEqual (10023, x.getValue());
+         assertThat (x.getValue(), is(10023));
      }
+
+## Running Your Tests
 
 The unittest.cpp includes a main() function to drive the tests.  When
  run with no command-line parameters, all unit test functions are run.
@@ -109,3 +181,34 @@ of buggy code that may be caught in an infinite loop. On Unix-based
 final linkage step, e.g.,
 
     g++ -o unittest -g unittest.o adt1.o adt2.o -pthread
+    
+On Windows systems, the timing functions may not work. In particular, they are
+ignored when a MinGW compiler is used.
+
+# Debugging Unit Tests
+
+One of the major benefits of the *Unit style of testing is that it provides
+easy launch points for debugging.  Some tips to consider:
+
+* Turn off the timing function when debugging. Obviously, if your unit
+   tests fail automatically when you spend morethan 0.5 seconds (the default) 
+   or any other short time, this will interfere with using a debugger to set
+   break points, step through code, etc.   You can turn off the timing by
+   placing
+   
+        #define DEFAULT_UNIT_TEST_TIME_LIMIT -1L 
+
+    in front of your `UnitTest`s.  The negative value disables the default
+    time-out behavior.  
+   
+* If you are setting breakpoints
+  inside your code, you may find it distracting that these
+  breakpoints are hit multiple times by unit tests that you are passing before
+  execution even begins on the one(s) that you have failed.
+  
+    Use the command line arguments (see **Running Your Tests**, above) to
+    limit your debugging runs to the test(s) that you are actually failing
+    so as to focus your debugging efforts.
+  
+  
+  

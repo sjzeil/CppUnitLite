@@ -16,6 +16,7 @@
 #include "unittest.h"
 
 using namespace std;
+using namespace CppUnitLite;
 
 std::map<std::string, UnitTest::BoundedTest> *UnitTest::tests = nullptr;
 
@@ -254,7 +255,7 @@ void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 #else
 
 // Run a single unit test function.
-void UnitTest::runTest (std::string testName, TestFunction u, int timeLimit)
+void UnitTest::runTest (std::string testName, TestFunction u, long int timeLimit)
 {
 	runTestUntimed (testName, u);
 }
@@ -327,6 +328,101 @@ void UnitTest::logCall (const std::string& functionName)
 {
 	callLog.push_back (functionName);
 }
+
+
+StringContainsMatcher::StringContainsMatcher (const std::string& t): hold(t) {}
+bool StringContainsMatcher::eval(const std::string& e) const {
+	return e.find(hold) != std::string::npos;
+}
+
+CppUnitLite::StringContainsMatcher
+contains(const char* t)
+{
+	return CppUnitLite::StringContainsMatcher(std::string(t));
+}
+
+CppUnitLite::StringContainsMatcher
+contains(const std::string& t)
+{
+	return CppUnitLite::StringContainsMatcher(t);
+}
+
+StringEndsWithMatcher::StringEndsWithMatcher (const std::string& t): hold(t) {}
+bool StringEndsWithMatcher::eval(const std::string& e) const {
+	if (hold.size() <= e.size())
+	{
+		return equal(hold.begin(), hold.end(),
+				e.begin() + e.size() - hold.size());
+	}
+	else
+		return false;
+}
+
+StringEndsWithMatcher
+endsWith(const char* t)
+{
+	return StringEndsWithMatcher(std::string(t));
+}
+
+StringEndsWithMatcher
+endsWith(const std::string& t)
+{
+	return StringEndsWithMatcher(t);
+}
+
+StringBeginsWithMatcher::StringBeginsWithMatcher (const std::string& t)
+: hold(t) {}
+
+bool StringBeginsWithMatcher::eval(const std::string& e) const
+{
+	if (hold.size() <= e.size())
+	{
+		return equal(hold.begin(), hold.end(), e.begin());
+	}
+	else
+		return false;
+}
+
+StringBeginsWithMatcher beginsWith(const char* t)
+{
+	return CppUnitLite::StringBeginsWithMatcher(std::string(t));
+}
+
+StringBeginsWithMatcher beginsWith(const std::string& t)
+{
+	return StringBeginsWithMatcher(t);
+}
+
+StringBeginsWithMatcher startsWith(const char* t)
+{
+	return StringBeginsWithMatcher(std::string(t));
+}
+
+StringBeginsWithMatcher startsWith(const std::string& t)
+{
+	return StringBeginsWithMatcher(t);
+}
+
+
+bool NullMatcher::eval(void* p) const
+{
+	return p == nullptr;
+}
+
+CppUnitLite::NullMatcher isNull()
+{
+	return CppUnitLite::NullMatcher();
+}
+
+bool NotNullMatcher::eval(void* p) const {
+	return p != nullptr;
+}
+
+CppUnitLite::NotNullMatcher isNotNull()
+{
+	return CppUnitLite::NotNullMatcher();
+}
+
 
 
 

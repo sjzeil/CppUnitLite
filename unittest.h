@@ -1,11 +1,175 @@
 #ifndef UNITTEST_H
 #define UNITTEST_H
 
-#include <exception>
-#include <string>
+#include <algorithm>
+#include <cstdarg>
+#include <iostream>
 #include <map>
 #include <sstream>
+#include <string>
 #include <vector>
+
+/**
+ *  This class helps support self-checking unit tests.
+ *
+ * This is a lightweight framework similar in spirit to JUnit (for Java),
+ *  Google Test, and Boost Test, but which can be added to a project by the
+ *  simple addition of the two files, unittest.h and unittest.cpp.  It's not as
+ *  robust as those other frameworks - some runtime errors will shut the
+ *  test suite down with no final report.
+ * 
+ * # Usage
+ * 
+ *  The framework consists of a two files, `unittest.h` and `unittest.cpp`,
+ *  that can be dropped into a C++ project directory, allowing the creation of
+ *  a unit test suite.
+ * 
+ *  A test suite consists of a collection of unit test functions, which can
+ *  be distributed among multiple .cpp files. (Typically one such file
+ *  would be devoted to testing each class in the project.)
+ * 
+ *  Each unit test function is introduced via `UnitTest` or, optionally,
+ *  `UnitTestTimed` (which alters the default timeout, measured in 
+ *  milliseconds).
+ * 
+ *  Each unit test function can contain code to set up parameters, invoke
+ *  the function(s) being tested, and to evaluate the results of those
+ *  function calls via the use of assertions. Most assertions have the form:
+ * 
+ *     assertThat (value, matcher);
+ * 
+ *  although the following "old-fashioned" assertions are also supported.
+ * 
+ *        assertTrue (condition);
+ *        assertFalse (condition);
+ *        assertEqual (expression1, expression2);
+ *        assertNotEqual (expression1, expression2);
+ *        assertNull (expression);
+ *        assertNotNull (expression);
+ * 
+ * The assertThat form, however, allows for a much wider and expressive range of
+ * tests:
+ * 
+ * ## Relational Matchers
+ * 
+ *     assertThat(x, isEqualTo(y));
+ *     assertThat(x, is(y));  // same as isEqualTo
+ *     assertThat(x, isNotEqualTo(y));
+ *     assertThat(x, isNot(y));  // same as isNotEqualTo
+ * 
+ *     assertThat(x, isOneOf(w, y, z));  // Allows 1 or more options
+ * 
+ *     assertThat(x, isLessThan(y));
+ *     assertThat(x, isGreaterThan(y));
+ *     assertThat(x, isLessThanOrEqualTo(y));
+ *     assertThat(x, isGreaterThanOrEqualTo(y));
+ * 
+ * ## String Matchers
+ * 
+ *     assertThat(str, contains("bc"));
+ *     assertThat(str, beginsWith(str2));
+ *     assertThat(str, endsWith(str2));
+ *     assertThat(str, startsWith(str2)); // same as beginsWith
+ * 
+ * ## Pointer Matchers
+ * 
+ *     assertThat(p, isNull());
+ *     assertThat(q, isNotNull());
+ * 
+ * ## Container Matchers
+ * 
+ * (These apply to std::array, vector, list, deque, set, map, and, in general,
+ *  anything that provides begin() and end() functions.)
+ * 
+ *     assertThat(v, contains(3));
+ *     assertThat(v, hasItem(x));  // Same as contains
+ * 
+ *     assertThat(L, hasItems(3, 9)); // Allows one or more values
+ * 
+ *     assertThat(range(v.begin(), v.end()), hasItem(z));
+ * 
+ * 
+ *     assertThat(x, isIn(v));
+ *     assertThat(x, isInRange(v.begin(), v.end()));
+ * 
+ * ### Associative Container Matchers
+ * 
+ * These will give better performance when used with std sets and maps.
+ * 
+ *     assertThat(aSet, hasKey(3));
+ *     assertThat(aSet, hasKeys(3, 5));  // allows one or more values
+ *     assertThat(aMap, hasEntry(5, 10));
+ * 
+ * ## Combining Matchers
+ * 
+ *     assertThat(x, !(matcher));  // Negate a matcher
+ * 
+ *     assertThat(x, allOf(isLessThan(42), isGreaterThan(10), is(23))); // All must be true
+ * 
+ *     assertThat(23, anyOf(isLessThan(42), isGreaterThan(10))); // One or more must be true
+ * 
+ * # Example
+ * 
+ * ## Writing A Unit Test
+ * 
+ * A unit test of a simple "counter" class might look like:
+ * 
+ *      #include "unittest.h"
+ *      #include "myCounter.h"
+ * 
+ *      UnitTest (testConstructor)
+ *      {
+ *          MyClass x (23);
+ *          assertThat (x.getValue(), is(23));
+ *          assertThat (x.isZero(), is(true));
+ *          assertTrue (x.isZero()); // older style
+ *      }
+ * 
+ *      UnitTestTimed (testIncrement, 100L) // Limited to 100ms
+ *      {
+ *          MyClass x (23);
+ *          x.increment();
+ *          assertThat (x.getValue(), is(24));
+ *          x.increment();
+ *          assertThat (x.getValue(), is(25));
+ *      }
+ * 
+ *      UnitTestTimed (longTest, -1L) // No timer: will never time out
+ *      {
+ *          MyClass x (23);
+ * 	     for (int i = 0; i < 10000; ++i)
+ *               x.increment();
+ *          assertThat (x.getValue(), is(10023));
+ *      }
+ * 
+ * 
+ * ## Running Your Tests
+ * 
+ * The unittest.cpp includes a main() function to drive the tests.  When
+ *  run with no command-line parameters, all unit test functions are run.
+ *  If command-line parameters are provided, they provide a list of test
+ *  function names to indicate which tests to run.  Specifically,
+ *  any test function whose name contains the command-line parameter
+ *  will be run.
+ * 
+ *  For example, if the above tests are compiled to form an executable
+ *  named "`unittest`", then
+ * 
+ *       ./unittest testIncrement
+ * 
+ * or
+ * 
+ *       ./unittest Incr
+ * 
+ * 
+ * would run only the second test above, but any of the following
+ * 
+ *       ./unittest testConstructor testIncrement longTest
+ *       ./unittest est
+ *       ./unittest
+ * 
+ * would run all three tests.
+ */
 
 
 /**
@@ -22,78 +186,51 @@
  */
 #define DEFAULT_UNIT_TEST_TIME_LIMIT 500L
 
+/**
+ *   Macros - actual tests will invoke one of these
+ */
+
+#define assertThat( obj, matcher ) CppUnitLite::UnitTest::checkTest \
+	((matcher).eval(obj), \
+	 std::string(#obj) + " " + std::string(#matcher), __FILE__, __LINE__)
 
 
+#define assertTrue(cond) CppUnitLite::UnitTest::checkTest\
+	(cond, #cond, __FILE__, __LINE__)
+
+#define assertFalse(cond) CppUnitLite::UnitTest::checkTest\
+	(!(cond), std::string("!(") +  #cond + ")", __FILE__, __LINE__)
+
+#define assertEqual( x, y ) CppUnitLite::UnitTest::checkTest ((x)==(y),\
+		"assertEqual("  #x "," #y ")", \
+		__FILE__, __LINE__)
+
+#define assertNotEqual( x , y ) assertFalse ((x)==(y))
+
+#define assertNull(x) assertTrue ((x)==nullptr)
+
+#define assertNotNull(x) assertTrue ((x)!=nullptr)
+
+#define succeed CppUnitLite::UnitTest::checkTest (true, "succeed", __FILE__, __LINE__)
+
+#define fail CppUnitLite::UnitTest::checkTest (false, "fail", __FILE__, __LINE__)
 
 /**
- *  This class helps support self-checking unit tests.
- *
- *  This is a lightweight framework similar in spirit to JUnit (for Java),
- *  Google Test, and Boost Test, but which can be added to a project by the
- *  simple addition of the two unittest.h and unittest.cpp files.  It's not as
- *  robust as those other frameworks - some runtime errors will shut the
- *  test suite down with no final report.
- *  
- *  Usage:  A test suite consists of a collection of unit test functions.
- *  Each such function is introduced via UnitTest or, optionally, UnitTestTimed
- *  (which alters the default timeout, measured in milliseconds).
- *
- *  Each unit test function can contain code to set up parameters, invoke
- *  the function(s) being tested, and to evaluate the results of those
- *  function calls via the use of assertions:
- *
- *      assertTrue (condition);
- *      assertFalse (condition);
- *      assertEqual (expression1, expression2);
- *      assertNotEqual (expression1, expression2);
- *      assertNull (expression);
- *      assertNotNull (expression);
- *
- *  For example:
- *
- *    #include "unittest.h"
- *    #include "myCounter.h"
- *
- *    UnitTest (testConstructor)
- *    {
- *        MyClass x (23);
- *        assertEqual (23, x.getValue());
- *        assertFalse (x.isZero());
- *    }
- *
- *    UnitTestTimed (testIncrement, 100) // Limited to 100ms
- *    {
- *        MyClass x (23);
- *        x.increment();
- *        assertEqual (24, x.getValue());
- *        x.increment();
- *        assertEqual (25, x.getValue());
- *    }
- *
- *  The unittest.cpp includes a main() function to drive the tests.  When
- *  run with no command-line parameters, all unit test functions are run.
- *  If command-line parameters are provided, they provide a list of test
- *  function names to indicate which tests to run. Specifically,
- *  any test function whose name contains the command-line parameter
- *  will be run.
- *
- * For example, if the above tests are compiled to form an executable
- * named "unittest", then
- *
- *   ./unittest testIncrement
- *
- * or
- *
- *   ./unittest Incr
- *
- * would run only the second test above, but any of the following
- *
- *   ./unittest testConstructor testIncrement
- *   ./unittest test
- *   ./unittest
- *
- * would run both tests.
- *
+ * Test registration
+ */
+
+#define UnitTest(functName) UnitTestTimed(functName, DEFAULT_UNIT_TEST_TIME_LIMIT)
+
+#define UnitTestTimed(functName, limit) void functName(); int functName ## dummy = \
+		CppUnitLite::UnitTest::registerUT(#functName, limit, &functName); void functName()
+
+
+
+
+
+namespace CppUnitLite {
+/**
+ * Main support class for unit test execution.
  */
 class UnitTest {
 private:
@@ -356,36 +493,590 @@ public:
 			std::string& msg);
 };
 
+inline void expectedToFail()
+{
+	UnitTest::expectedToFail();
+}
 
-/**
- *   Macros - actual tests will invoke one of these
- */
 
-#define assertTrue(cond) UnitTest::checkTest (cond, #cond, __FILE__, __LINE__)
-#define assertFalse(cond) UnitTest::checkTest (!(cond), std::string("!(") +  #cond + ")", __FILE__, __LINE__)
 
-#define assertEqual( x, y ) UnitTest::checkTest ((x)==(y),\
-		"assertEqual("  #x "," #y ")", \
-		__FILE__, __LINE__)
 
-#define assertNotEqual( x , y ) assertFalse ((x)==(y))
+//// Relational Matchers
 
-#define assertNull(x) checkTest ((x)==0)
+template <typename T>
+class EqualToMatcher {
+	const T hold;
+public:
+	EqualToMatcher (const T& t): hold(t) {}
+	bool eval(const T& t) const {
+		return t == hold;
+	}
+};
 
-#define assertNotNull(x) checkTest ((x)!=0)
+template <typename T>
+class NotEqualToMatcher {
+	const T hold;
+public:
+	NotEqualToMatcher (const T& t): hold(t) {}
+	bool eval(const T& t) const {
+		return !(t == hold);
+	}
+};
 
-#define succeed UnitTest::checkTest (true, "succeed", __FILE__, __LINE__)
+template <typename T>
+class LessThanMatcher {
+	const T hold;
+public:
+	LessThanMatcher (const T& t): hold(t) {}
+	bool eval(const T& t) const {
+		return t < hold;
+	}
+};
 
-#define fail UnitTest::checkTest (false, "fail", __FILE__, __LINE__)
+template <typename T>
+class GreaterThanMatcher {
+	const T hold;
+public:
+	GreaterThanMatcher (const T& t): hold(t) {}
+	bool eval(const T& t) const {
+		return hold < t;
+	}
+};
 
-/**
- * Test registration
- */
+template <typename T>
+class LessThanOrEqualToMatcher {
+	const T hold;
+public:
+	LessThanOrEqualToMatcher (const T& t): hold(t) {}
+	bool eval(const T& t) const {
+		return !(hold < t);
+	}
+};
 
-#define UnitTest(functName) UnitTestTimed(functName, DEFAULT_UNIT_TEST_TIME_LIMIT)
 
-#define UnitTestTimed(functName, limit) void functName(); int functName ## dummy = \
-		UnitTest::registerUT(#functName, limit, &functName); void functName()
+template <typename T>
+class GreaterThanOrEqualToMatcher {
+	const T hold;
+public:
+	GreaterThanOrEqualToMatcher (const T& t): hold(t) {}
+	bool eval(const T& t) const {
+		return !(t < hold);
+	}
+};
+
+//// String Matchers
+
+class StringContainsMatcher {
+	const std::string hold;
+public:
+	StringContainsMatcher (const std::string& t);
+	bool eval(const std::string& e) const;
+};
+
+class StringEndsWithMatcher {
+	const std::string hold;
+public:
+	StringEndsWithMatcher (const std::string& t);
+	bool eval(const std::string& e) const;
+};
+
+class StringBeginsWithMatcher {
+	const std::string hold;
+public:
+	StringBeginsWithMatcher (const std::string& t);
+	bool eval(const std::string& e) const;
+};
+
+
+// Pointer Matchers
+
+class NullMatcher {
+public:
+	bool eval(void* p) const;
+};
+
+class NotNullMatcher {
+public:
+	bool eval(void* p) const;
+};
+
+
+//// Container Matchers
+
+template <typename Container, typename Element>
+bool containerSearch (const Container& c, const Element& e)
+{
+	std::cout << "generalized" << std::endl;
+	return find(c.begin(), c.end(), e) != c.end();
+}
+
+
+
+template <typename Element>
+class ContainsMatcher {
+	Element hold;
+public:
+	ContainsMatcher (Element e) : hold(e) {}
+
+	template <typename Container>
+	bool eval(const Container& c) const {
+		return containerSearch(c, hold);
+	}
+
+};
+
+
+
+template <typename Element>
+class HasKeyMatcher {
+	Element hold;
+public:
+	HasKeyMatcher (Element e) : hold(e) {}
+
+	template <typename Container>
+	bool eval(const Container& c) const {
+		return c.find(hold) != c.end();
+	}
+
+};
+
+
+
+template <typename Key, typename Data>
+class HasEntryMatcher {
+	Key key;
+	Data data;
+public:
+	HasEntryMatcher (const Key& k, const Data& d) : key(k), data(d) {}
+
+	template <typename Container>
+	bool eval(const Container& c) const {
+		auto pos = c.find(key);
+		if (pos != c.end())
+		{
+			return (pos->second == data);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+};
+
+
+
+
+template <typename Iterator>
+class IteratorRange {
+	Iterator start;
+	Iterator stop;
+public:
+	typedef Iterator iterator;
+	typedef Iterator const_iterator;
+
+	IteratorRange (Iterator b, Iterator e): start(b), stop(e) {}
+
+	Iterator begin() const { return start; }
+	Iterator end() const { return stop; }
+};
+
+template <typename... Ts>
+class HasItemsMatcher {
+	using Element = typename std::common_type<Ts...>::type;
+    typename std::vector<Element> hold;
+public:
+    HasItemsMatcher (Ts... ts): hold({ts...})
+	{ }
+
+    template <typename Container>
+    bool eval (const Container& c) const
+    {
+    	for (const Element& e: hold)
+    	{
+    		if (find(c.begin(), c.end(), e) == c.end()) return false;
+    	}
+    	return true;
+    }
+};
+
+
+
+template <typename... Ts>
+class HasKeysMatcher {
+	using Element = typename std::common_type<Ts...>::type;
+    typename std::vector<Element> hold;
+public:
+    HasKeysMatcher (Ts... ts): hold({ts...})
+	{ }
+
+    template <typename Container>
+    bool eval (const Container& c) const
+    {
+    	for (const Element& e: hold)
+    	{
+    		if (find(c.begin(), c.end(), e) == c.end()) return false;
+    	}
+    	return true;
+    }
+};
+
+
+
+
+
+
+template <typename Container>
+class IsInMatcher {
+	using Iterator = typename Container::const_iterator;
+	Iterator start;
+	Iterator stop;
+public:
+	IsInMatcher (const Container& c) : start(c.begin()), stop(c.end()) {}
+
+	template <typename Element>
+	bool eval(const Element& e) const {
+		return find(start, stop, e) != stop;
+	}
+
+};
+
+
+
+template <typename Iterator>
+class IsInRangeMatcher {
+	Iterator start;
+	Iterator stop;
+public:
+	IsInRangeMatcher (Iterator b, Iterator e) : start(b), stop(e) {}
+
+	template <typename Element>
+	bool eval(const Element& e) const {
+		return find(start, stop, e) != stop;
+	}
+
+};
+
+
+
+
+
+//// Boolean Matchers
+
+template <typename T>
+class NotMatcher {
+	T hold;
+public:
+	NotMatcher (const T& t): hold(t) {}
+	template <typename U>
+	bool eval(const U& u) const {
+		return !(hold.eval(u));
+	}
+};
+
+
+template <typename... Rest>
+class AllOfMatcher {
+public:
+    AllOfMatcher (Rest... matchers)
+	{ }
+
+    template <typename T>
+    bool eval (const T& t) const
+    {
+    	return true;
+    }
+};
+template <typename Matcher, typename... Rest>
+class AllOfMatcher<Matcher, Rest...> {
+	Matcher matcher;
+    AllOfMatcher<Rest...> rest;
+public:
+    AllOfMatcher (Matcher m, Rest... matchers): matcher(m), rest(matchers...)
+	{ }
+
+    template <typename T>
+    bool eval (const T& t) const
+    {
+    	return matcher.eval(t) && rest.eval(t);
+    }
+};
+
+
+
+template <typename... Rest>
+class AnyOfMatcher {
+public:
+    AnyOfMatcher (Rest... matchers)
+	{ }
+
+    template <typename T>
+    bool eval (const T& t) const
+    {
+    	return false;
+    }
+};
+template <typename Matcher, typename... Rest>
+class AnyOfMatcher<Matcher, Rest...> {
+	Matcher matcher;
+    AnyOfMatcher<Rest...> rest;
+public:
+    AnyOfMatcher (Matcher m, Rest... matchers): matcher(m), rest(matchers...)
+	{ }
+
+    template <typename T>
+    bool eval (const T& t) const
+    {
+    	return matcher.eval(t) || rest.eval(t);
+    }
+};
+
+
+
+
+template <typename... T>
+class OneOfMatcher {
+	using Element = typename std::common_type<T...>::type;
+    typename std::vector<Element> hold;
+public:
+    OneOfMatcher (T... t): hold({std::forward<T>(t)...})
+	{ }
+
+    bool eval (const Element& t) const
+    {
+    	for (const Element& e: hold)
+    	{
+    		if (t == e) return true;
+    	}
+    	return false;
+    }
+};
+
+
+}
+
+
+////  Matchers
+
+
+/// Relational Matchers
+
+inline CppUnitLite::EqualToMatcher<std::string>
+isEqualTo(const char* t)
+{
+	return CppUnitLite::EqualToMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::EqualToMatcher<T>
+isEqualTo(const T& t)
+{
+	return CppUnitLite::EqualToMatcher<T>(t);
+}
+
+inline CppUnitLite::EqualToMatcher<std::string>
+is(const char* t)
+{
+	return CppUnitLite::EqualToMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::EqualToMatcher<T>
+is(const T& t)
+{
+	return CppUnitLite::EqualToMatcher<T>(t);
+}
+
+inline CppUnitLite::NotEqualToMatcher<std::string>
+isNotEqualTo(const char* t)
+{
+	return CppUnitLite::NotEqualToMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::NotEqualToMatcher<T>
+isNotEqualTo(const T& t)
+{
+	return CppUnitLite::NotEqualToMatcher<T>(t);
+}
+
+inline CppUnitLite::NotEqualToMatcher<std::string>
+isNot(const char* t)
+{
+	return CppUnitLite::NotEqualToMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::NotEqualToMatcher<T>
+isNot(const T& t)
+{
+	return CppUnitLite::NotEqualToMatcher<T>(t);
+}
+
+inline CppUnitLite::LessThanMatcher<std::string> \
+isLessThan(const char* t)
+{
+	return CppUnitLite::LessThanMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::LessThanMatcher<T> isLessThan(const T& t)
+{
+	return CppUnitLite::LessThanMatcher<T>(t);
+}
+
+inline CppUnitLite::GreaterThanMatcher<std::string>
+isGreaterThan(const char* t)
+{
+	return CppUnitLite::GreaterThanMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::GreaterThanMatcher<T>
+isGreaterThan(const T& t)
+{
+	return CppUnitLite::GreaterThanMatcher<T>(t);
+}
+
+inline CppUnitLite::LessThanOrEqualToMatcher<std::string>
+isLessThanOrEqualTo(const char* t)
+{
+	return CppUnitLite::LessThanOrEqualToMatcher<std::string>(std::string(t));
+}
+template <typename T>
+CppUnitLite::LessThanOrEqualToMatcher<T>
+isLessThanOrEqualTo(const T& t)
+{
+	return CppUnitLite::LessThanOrEqualToMatcher<T>(t);
+}
+
+inline CppUnitLite::GreaterThanOrEqualToMatcher<std::string>
+isGreaterThanOrEqualTo(const char* t)
+{
+	return CppUnitLite::GreaterThanOrEqualToMatcher<std::string>(std::string(t));
+}
+
+template <typename T>
+CppUnitLite::GreaterThanOrEqualToMatcher<T>
+isGreaterThanOrEqualTo(const T& t)
+{
+	return CppUnitLite::GreaterThanOrEqualToMatcher<T>(t);
+}
+
+
+/// String matchers
+
+CppUnitLite::StringContainsMatcher contains(const char* t);
+CppUnitLite::StringContainsMatcher contains(const std::string& t);
+
+CppUnitLite::StringEndsWithMatcher endsWith(const char* t);
+CppUnitLite::StringEndsWithMatcher endsWith(const std::string& t);
+
+CppUnitLite::StringBeginsWithMatcher beginsWith(const char* t);
+CppUnitLite::StringBeginsWithMatcher beginsWith(const std::string& t);
+CppUnitLite::StringBeginsWithMatcher startsWith(const char* t);
+CppUnitLite::StringBeginsWithMatcher startsWith(const std::string& t);
+
+
+/// Pointer matchers
+
+CppUnitLite::NullMatcher isNull();
+CppUnitLite::NotNullMatcher isNotNull();
+
+
+/// Container matchers
+
+
+template <typename T>
+CppUnitLite::ContainsMatcher<T> hasItem(const T& e)
+{
+	return CppUnitLite::ContainsMatcher<T>(e);
+}
+
+template <typename T>
+CppUnitLite::ContainsMatcher<T> contains(const T& e)
+{
+	return CppUnitLite::ContainsMatcher<T>(e);
+}
+
+template <typename T>
+CppUnitLite::HasKeyMatcher<T> hasKey(const T& e)
+{
+	return CppUnitLite::HasKeyMatcher<T>(e);
+}
+
+template <typename Key, typename Data>
+CppUnitLite::HasEntryMatcher<Key, Data> hasEntry(const Key& k, const Data& d)
+{
+	return CppUnitLite::HasEntryMatcher<Key, Data>(k, d);
+}
+
+template <typename Iterator>
+CppUnitLite::IteratorRange<Iterator> range (Iterator start, Iterator stop)
+{
+	return CppUnitLite::IteratorRange<Iterator>(start, stop);
+}
+
+template <typename... Ts>
+CppUnitLite::HasItemsMatcher<Ts...> hasItems (Ts... t)
+{
+	return CppUnitLite::HasItemsMatcher<Ts...>(t...);
+}
+
+
+/// Associative container (set & map) matchers
+
+template <typename... Ts>
+CppUnitLite::HasKeysMatcher<Ts...> hasKeys (Ts... t)
+{
+	return CppUnitLite::HasKeysMatcher<Ts...>(t...);
+}
+
+template <typename Container>
+CppUnitLite::IsInMatcher<Container> isIn(const Container& c)
+{
+	return CppUnitLite::IsInMatcher<Container>(c);
+}
+
+template <typename Iterator>
+CppUnitLite::IsInRangeMatcher<Iterator> isInRange(Iterator b, Iterator e)
+{
+	return CppUnitLite::IsInRangeMatcher<Iterator>(b, e);
+}
+
+
+/// Combining matchers
+
+template <typename T>
+CppUnitLite::NotMatcher<T>
+operator!(const T& t)
+{
+	return CppUnitLite::NotMatcher<T>(t);
+}
+
+template <typename... Ts>
+CppUnitLite::AllOfMatcher<Ts...>
+allOf(Ts... ts)
+{
+	return CppUnitLite::AllOfMatcher<Ts...>(ts...);
+}
+
+template <typename... Ts>
+CppUnitLite::AnyOfMatcher<Ts...>
+anyOf(Ts... ts)
+{
+	return CppUnitLite::AnyOfMatcher<Ts...>(ts...);
+}
+
+template <typename... T>
+CppUnitLite::OneOfMatcher<T...>
+isOneOf (T... t)
+{
+	return CppUnitLite::OneOfMatcher<T...>(t...);
+}
+
+
+
 
 
 #endif
