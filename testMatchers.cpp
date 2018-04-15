@@ -29,6 +29,12 @@ UnitTest(testRelationals) {
 	assertThat(21, isNot(22));
 	assertThat(21, isNotEqualTo(22));
 
+	assertThat(1.001, isApproximately(1.0, 0.0011));
+	assertThat(0.999, isApproximately(1.0, 0.0011));
+	assertThat(1.01, !isApproximately(1.0, 0.0011));
+	assertThat(0.99, !isApproximately(1.0, 0.0011));
+
+
 	assertThat(21, isLessThan(22));
 	assertThat(string("def"), isGreaterThan("abc"));
 	assertThat(21, isLessThanOrEqualTo(22));

@@ -54,6 +54,7 @@
  * 
  *     assertThat(x, isEqualTo(y));
  *     assertThat(x, is(y));  // same as isEqualTo
+ *     assertThat(x, isApproximately(y, delta));  // floating point only
  *     assertThat(x, isNotEqualTo(y));
  *     assertThat(x, isNot(y));  // same as isNotEqualTo
  * 
@@ -549,6 +550,17 @@ public:
 	}
 };
 
+template <typename T, typename U>
+class ApproximatelyEqualToMatcher {
+	const T hold;
+	const U delta;
+public:
+	ApproximatelyEqualToMatcher (const T& t, const U& d): hold(t), delta(d) {}
+	bool eval(const T& t) const {
+		return hold - delta <= t &&  t <= hold + delta;
+	}
+};
+
 template <typename T>
 class NotEqualToMatcher {
 	const T hold;
@@ -878,6 +890,13 @@ CppUnitLite::EqualToMatcher<T>
 is(const T& t)
 {
 	return CppUnitLite::EqualToMatcher<T>(t);
+}
+
+template <typename T, typename U>
+CppUnitLite::ApproximatelyEqualToMatcher<T,U>
+isApproximately(const T& t, const U& delta)
+{
+	return CppUnitLite::ApproximatelyEqualToMatcher<T,U>(t, delta);
 }
 
 inline CppUnitLite::NotEqualToMatcher<std::string>

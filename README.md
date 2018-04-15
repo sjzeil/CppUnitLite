@@ -41,6 +41,7 @@ tests:
 
     assertThat(x, isEqualTo(y));
     assertThat(x, is(y));  // same as isEqualTo
+    assertThat(x, isApproximately(y, delta));  // floating point only
     assertThat(x, isNotEqualTo(y));
     assertThat(x, isNot(y));  // same as isNotEqualTo
 
