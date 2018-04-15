@@ -65,27 +65,25 @@ tests:
 
 ## Container Matchers
 
-(These apply to std::array, vector, list, deque, set, map, and, in general,
- anything that provides begin() and end() functions.)
-  
+Containers that define key_type (sets and maps, including unordered)
+will be searched using their own fast find member function.  Other
+containers will be searched using a sequential search over begin()..end().
+
     assertThat(v, contains(3));
     assertThat(v, hasItem(x));  // Same as contains
+    assertThat(v, hasKey(x));  // Same as contains
 
     assertThat(L, hasItems(3, 9)); // Allows one or more values
+    assertThat(L, hasKeys(3, 9));  // Same as hasItems
 
-    assertThat(range(v.begin(), v.end()), hasItem(z)); 
-
+    assertThat(range(v.begin(), v.end()), hasItem(z));
+    assertThat(arrayOfLength(array, len), hasItem(z));
 
     assertThat(x, isIn(v));
     assertThat(x, isInRange(v.begin(), v.end()));
 
-### Associative Container Matchers
+    assertThat(aMap, hasEntry(5, 10)); // maps only
 
-These will give better performance when used with std sets and maps.
-
-    assertThat(aSet, hasKey(3));
-    assertThat(aSet, hasKeys(3, 5));  // allows one or more values
-    assertThat(aMap, hasEntry(5, 10));
 
 ## Combining Matchers
 

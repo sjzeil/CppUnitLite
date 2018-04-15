@@ -72,7 +72,8 @@ UnitTest(testContainers) {
     assertThat(v, !hasItem(2));
 
     assertThat(L, hasItems(3, 9));
-    assertThat(range(v.begin(), v.end()), hasItem(1));
+    assertThat(range(v.begin(), v.end()), hasItem(9));
+    assertThat(arrayOfLength(numbers, 4), hasItem(3));
 
 
     assertThat(3, isIn(v));
@@ -97,6 +98,8 @@ UnitTest(testAssocContainers) {
     assertThat(m, hasKey(3));
     assertThat(s, hasKeys(3, 5));
     assertThat(m, hasEntry(5, 10));
+
+    assertThat(3, isIn(s));
 }
 
 

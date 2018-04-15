@@ -78,27 +78,25 @@
  * 
  * ## Container Matchers
  * 
- * (These apply to std::array, vector, list, deque, set, map, and, in general,
- *  anything that provides begin() and end() functions.)
+ * Containers that define key_type (sets and maps, including unordered)
+ * will be searched using their own fast find member function.  Other
+ * containers will be searched using a sequential search over begin()..end().
  * 
  *     assertThat(v, contains(3));
  *     assertThat(v, hasItem(x));  // Same as contains
+ *     assertThat(v, hasKey(x));  // Same as contains
  * 
  *     assertThat(L, hasItems(3, 9)); // Allows one or more values
+ *     assertThat(L, hasKeys(3, 9));  // Same as hasItems
  * 
  *     assertThat(range(v.begin(), v.end()), hasItem(z));
+ *     assertThat(arrayOfLength(array, len), hasItem(z));
  * 
  * 
  *     assertThat(x, isIn(v));
  *     assertThat(x, isInRange(v.begin(), v.end()));
  * 
- * ### Associative Container Matchers
- * 
- * These will give better performance when used with std sets and maps.
- * 
- *     assertThat(aSet, hasKey(3));
- *     assertThat(aSet, hasKeys(3, 5));  // allows one or more values
- *     assertThat(aMap, hasEntry(5, 10));
+ *     assertThat(aMap, hasEntry(5, 10)); // maps only
  * 
  * ## Combining Matchers
  * 
@@ -498,6 +496,44 @@ inline void expectedToFail()
 	UnitTest::expectedToFail();
 }
 
+// Compile-time test for associative containers
+inline constexpr auto container_has_keytype_impl(...)
+    -> std::false_type
+{ return std::false_type{}; }
+
+template <typename C, typename = typename C::key_type>
+constexpr auto container_has_keytype_impl(C const*) -> std::true_type {
+    return std::true_type{};
+}
+
+template <typename C>
+constexpr auto container_has_keytype(C const& c)
+    -> decltype(container_has_keytype_impl(&c))
+{
+    return container_has_keytype_impl(&c);
+}
+
+
+template <typename Container, typename Element>
+bool find_in_container_impl (const Container& c, const Element& e, std::false_type)
+{
+	for (auto it = c.begin(); it != c.end(); ++it)
+		if (e == *it)
+			return true;
+	return false;
+}
+
+template <typename Container, typename Element>
+bool find_in_container_impl (const Container& c, const Element& e, std::true_type)
+{
+	return c.find(e) != c.end();
+}
+
+template <typename Container, typename Element>
+bool find_in_container (const Container& c, const Element& e)
+{
+	return find_in_container_impl (c, e, container_has_keytype(c));
+}
 
 
 
@@ -603,12 +639,6 @@ public:
 
 //// Container Matchers
 
-template <typename Container, typename Element>
-bool containerSearch (const Container& c, const Element& e)
-{
-	std::cout << "generalized" << std::endl;
-	return find(c.begin(), c.end(), e) != c.end();
-}
 
 
 
@@ -620,25 +650,11 @@ public:
 
 	template <typename Container>
 	bool eval(const Container& c) const {
-		return containerSearch(c, hold);
+		return find_in_container(c, hold);
 	}
 
 };
 
-
-
-template <typename Element>
-class HasKeyMatcher {
-	Element hold;
-public:
-	HasKeyMatcher (Element e) : hold(e) {}
-
-	template <typename Container>
-	bool eval(const Container& c) const {
-		return c.find(hold) != c.end();
-	}
-
-};
 
 
 
@@ -694,52 +710,29 @@ public:
     {
     	for (const Element& e: hold)
     	{
-    		if (find(c.begin(), c.end(), e) == c.end()) return false;
+    		if (!find_in_container(c, e)) return false;
     	}
     	return true;
     }
 };
-
-
-
-template <typename... Ts>
-class HasKeysMatcher {
-	using Element = typename std::common_type<Ts...>::type;
-    typename std::vector<Element> hold;
-public:
-    HasKeysMatcher (Ts... ts): hold({ts...})
-	{ }
-
-    template <typename Container>
-    bool eval (const Container& c) const
-    {
-    	for (const Element& e: hold)
-    	{
-    		if (find(c.begin(), c.end(), e) == c.end()) return false;
-    	}
-    	return true;
-    }
-};
-
-
 
 
 
 
 template <typename Container>
 class IsInMatcher {
-	using Iterator = typename Container::const_iterator;
-	Iterator start;
-	Iterator stop;
+	const Container& container;
 public:
-	IsInMatcher (const Container& c) : start(c.begin()), stop(c.end()) {}
+	IsInMatcher (const Container& c) : container(c) {}
 
 	template <typename Element>
 	bool eval(const Element& e) const {
-		return find(start, stop, e) != stop;
+		return find_in_container(container, e);
 	}
 
 };
+
+
 
 
 
@@ -1000,9 +993,9 @@ CppUnitLite::ContainsMatcher<T> contains(const T& e)
 }
 
 template <typename T>
-CppUnitLite::HasKeyMatcher<T> hasKey(const T& e)
+CppUnitLite::ContainsMatcher<T> hasKey(const T& e)
 {
-	return CppUnitLite::HasKeyMatcher<T>(e);
+	return CppUnitLite::ContainsMatcher<T>(e);
 }
 
 template <typename Key, typename Data>
@@ -1011,6 +1004,12 @@ CppUnitLite::HasEntryMatcher<Key, Data> hasEntry(const Key& k, const Data& d)
 	return CppUnitLite::HasEntryMatcher<Key, Data>(k, d);
 }
 
+template <typename Element>
+CppUnitLite::IteratorRange<const Element*>
+arrayOfLength (const Element* start, int n)
+{
+	return CppUnitLite::IteratorRange<const Element*>(start, start+n);
+}
 template <typename Iterator>
 CppUnitLite::IteratorRange<Iterator> range (Iterator start, Iterator stop)
 {
@@ -1027,9 +1026,9 @@ CppUnitLite::HasItemsMatcher<Ts...> hasItems (Ts... t)
 /// Associative container (set & map) matchers
 
 template <typename... Ts>
-CppUnitLite::HasKeysMatcher<Ts...> hasKeys (Ts... t)
+CppUnitLite::HasItemsMatcher<Ts...> hasKeys (Ts... t)
 {
-	return CppUnitLite::HasKeysMatcher<Ts...>(t...);
+	return CppUnitLite::HasItemsMatcher<Ts...>(t...);
 }
 
 template <typename Container>
