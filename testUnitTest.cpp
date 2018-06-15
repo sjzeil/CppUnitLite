@@ -126,6 +126,7 @@ void bar(int a, bool b, std::string c, double d) {
 
 
 UnitTest(testLogging) {
+	CppUnitLite::UnitTest::clearCallLog();
 	foo();
 	assertEqual (1, distance(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()));
 	assertNotEqual (CppUnitLite::UnitTest::end(), find(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end(), "foo"));
@@ -136,8 +137,25 @@ UnitTest(testLogging) {
 	bar(24, false, "hello", 1.0);
 
 	assertEqual (4, distance(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()));
-	string expected[] = {"bar\t21", "baz\t22\t1", "foo\t23\t0\thello", "bar\t24\t0\thello\t1"};
+	string expected[] = {"bar\t21", "baz\t22\t1", "foo\t23\t0\thello", "bar\t24\t0\thello\t1.000000"};
 	assertTrue (equal(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end(), expected));
 
 }
+
+class FooBar { int i;};
+
+void foobar(const FooBar fb) {
+	CppUnitLite::UnitTest::logCall("foobar", fb);
+}
+
+UnitTest(testLoggingUnprintable) {
+	CppUnitLite::UnitTest::clearCallLog();
+	foobar(FooBar());
+
+	assertEqual (1, distance(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()));
+	string expected[] = {"foobar\t???"};
+	assertTrue (equal(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end(), expected));
+
+}
+
 

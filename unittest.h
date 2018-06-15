@@ -228,6 +228,83 @@
 
 
 namespace CppUnitLite {
+
+// String conversion functions, adapted from
+//   https://www.fluentcpp.com/2017/06/06/using-tostring-custom-types-cpp/
+
+
+template<typename...>
+using try_to_instantiate = void;
+
+using disregard_this = void;
+
+template<template<typename...> class Expression, typename Attempt, typename... Ts>
+struct is_detected_impl : std::false_type{};
+
+template<template<typename...> class Expression, typename... Ts>
+struct is_detected_impl<Expression, try_to_instantiate<Expression<Ts...>>, Ts...> : std::true_type{};
+
+template<template<typename...> class Expression, typename... Ts>
+constexpr bool is_detected = is_detected_impl<Expression, disregard_this, Ts...>::value;
+
+// 1- detecting if std::to_string is valid on T
+template<typename T>
+using std_to_string_expression = decltype(std::to_string(std::declval<T>()));
+
+template<typename T>
+constexpr bool has_std_to_string = is_detected<std_to_string_expression, T>;
+
+// 2- detecting if to_string is valid on T
+template<typename T>
+using to_string_expression = decltype(to_string(std::declval<T>()));
+
+template<typename T>
+constexpr bool has_to_string = is_detected<to_string_expression, T>;
+
+// 3- detecting T can be sent to an ostringstream
+template<typename T>
+using ostringstream_expression = decltype(std::declval<std::ostringstream&>() << std::declval<T>());
+
+template<typename T>
+constexpr bool has_ostringstream = is_detected<ostringstream_expression, T>;
+
+// 1-  std::to_string is valid on T
+template<typename T, typename std::enable_if<has_std_to_string<T>, int>::type = 0>
+std::string getStringRepr(T const& t)
+{
+	return std::to_string(t);
+}
+
+// 2-  std::to_string is not valid on T, but to_string is
+template<typename T, typename std::enable_if<!has_std_to_string<T>
+&& has_to_string<T>, int>::type = 0>
+std::string getStringRepr(T const& t)
+{
+	return to_string(t);
+}
+
+// 3-  neither std::string nor to_string work on T, let's stream it then
+template<typename T, typename std::enable_if<!has_std_to_string<T>
+&& !has_to_string<T> && has_ostringstream<T>, int>::type = 0>
+std::string getStringRepr(T const& t)
+{
+	std::ostringstream oss;
+	oss << t;
+	return oss.str();
+}
+
+// 4- Streams aren't available either - just give up
+template<typename T, typename std::enable_if<!has_std_to_string<T>
+&& !has_to_string<T> && !has_ostringstream<T>, int>::type = 0>
+std::string getStringRepr(T const& t)
+{
+	return std::string("???");
+}
+
+
+
+
+
 /**
  * Main support class for unit test execution.
  */
@@ -394,11 +471,7 @@ public:
 	template <typename T1>
 	static void logCall (const std::string& functionName, const T1& arg1)
 	{
-		using namespace std;
-		ostringstream out;
-		out << functionName;
-		out << "\t" << arg1;
-		logCall (out.str());
+		logCall (functionName + "\t" + getStringRepr(arg1));
 	}
 
 	/**
@@ -414,12 +487,7 @@ public:
 	static void logCall (const std::string& functionName,
 			const T1& arg1, const T2& arg2)
 	{
-		using namespace std;
-		ostringstream out;
-		out << functionName;
-		out << "\t" << arg1;
-		out << "\t" << arg2;
-		logCall (out.str());
+		logCall (functionName + "\t" + getStringRepr(arg1) + "\t" + getStringRepr(arg2));
 	}
 
 	/**
@@ -436,13 +504,8 @@ public:
 	static void logCall (const std::string& functionName,
 			const T1& arg1, const T2& arg2, const T3& arg3)
 	{
-		using namespace std;
-		ostringstream out;
-		out << functionName;
-		out << "\t" << arg1;
-		out << "\t" << arg2;
-		out << "\t" << arg3;
-		logCall (out.str());
+		logCall (functionName + "\t" + getStringRepr(arg1) + "\t" + getStringRepr(arg2)
+				+ "\t" + getStringRepr(arg3));
 	}
 
 
@@ -461,15 +524,11 @@ public:
 	static void logCall (const std::string& functionName,
 			const T1& arg1, const T2& arg2, const T3& arg3, const T4& arg4)
 	{
-		using namespace std;
-		ostringstream out;
-		out << functionName;
-		out << "\t" << arg1;
-		out << "\t" << arg2;
-		out << "\t" << arg3;
-		out << "\t" << arg4;
-		logCall (out.str());
+		logCall (functionName + "\t" + getStringRepr(arg1) + "\t" + getStringRepr(arg2)
+				+ "\t" + getStringRepr(arg3) + "\t" + getStringRepr(arg4));
 	}
+
+
 
 
 	private:
