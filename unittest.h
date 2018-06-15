@@ -490,6 +490,8 @@ public:
 	static void runTestUntimed(std::string testName, TestFunction u);
 	static int runTestGuarded(std::string testName, TestFunction u,
 			std::string& msg);
+
+	static bool debuggerIsRunning();
 };
 
 inline void expectedToFail()

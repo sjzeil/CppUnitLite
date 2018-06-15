@@ -12,6 +12,8 @@
 #include <setjmp.h>
 #include <cstdlib>
 
+#include <sys/ptrace.h>
+
 
 #include "unittest.h"
 
@@ -26,6 +28,12 @@ long UnitTest::numErrors = 0L;
 string UnitTest::currentTest;
 bool UnitTest::expectToFail = false;
 std::vector<std::string> UnitTest::callLog;
+
+#ifdef __amd64__
+#define breakDebugger { asm volatile ("int $3"); }
+#else
+#define breakDebugger { }
+#endif
 
 UnitTest::UnitTestFailure::UnitTestFailure (
 		const char* conditionStr,
@@ -47,12 +55,34 @@ const char* UnitTest::UnitTestFailure::what() const noexcept {
 	return explanation.c_str();
 }
 
+bool UnitTest::debuggerIsRunning()
+{
+     static bool firstTime = true;
+     static bool debuggerDetected = false;
+#ifndef __MINGW32__
+     if (firstTime)
+     {
+    	 firstTime = false;
+    	 if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0)
+    		 debuggerDetected = true;
+    	 else ptrace(PTRACE_DETACH, 0, 1, 0);
+    	 if (debuggerDetected)
+    	 {
+    		 cerr << "*Debugger detected -- test time limits will be ignored."
+    				 << endl;
+    	 }
+     }
+#endif
+     return debuggerDetected;
+}
+
 
 void UnitTest::checkTest (bool condition, const char* conditionStr,
 		const char* fileName, int lineNumber)
 {
 	if (!(condition))
 	{
+		if (debuggerIsRunning()) breakDebugger;  // Unit test has failed.
 		throw UnitTestFailure(conditionStr, fileName, lineNumber);
 	}
 }
@@ -207,7 +237,7 @@ void UnitTest::runTestUntimed (std::string testName, TestFunction u)
 // Run a single unit test function.
 void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 {
-	if (timeLimit > 0L)
+	if (timeLimit > 0L && !debuggerIsRunning())
 	{
 		int testResult; // 1== passed, 0 == failed, -1 == erro
 		string testExplanation;

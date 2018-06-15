@@ -209,5 +209,16 @@ easy launch points for debugging.  Some tips to consider:
     limit your debugging runs to the test(s) that you are actually failing
     so as to focus your debugging efforts.
   
+# What's New?
+ 
+## June 15, 2018
+
+* Framework now detects if it is running under gdb (and possibly other
+  debuggers?) and turns off the test timing feature.  Otherwise timeouts
+  tend to occur while single-stepping through code.
   
+* When a test assertion fails and we are running under a debugger, a debugger
+  break is forced before abandoning the test case.  Although the break will
+  be deeper in the call stack than the failed assertion, it should still
+  be possible to use the debugger examine the data at the point of the failure.      
   
