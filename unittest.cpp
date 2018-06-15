@@ -304,10 +304,36 @@ void UnitTest::runTests (int nTests, char** testNames)
 		for (int i = 0; i < nTests; ++i)
 		{
 			string testID = testNames[i];
+			bool found = false;
 			for (const auto& utest: *tests) {
 				if (utest.first.find(testID) != string::npos) {
 					testsToRun.insert(utest.first);
+					found = true;
 				}
+			}
+			if (!found)
+			{
+				for (const auto& utest: *tests) {
+					const string& utestName = utest.first;
+					string reducedName (1, utestName[0]);
+					for (unsigned i = 1; i < utest.first.size(); ++i)
+					{
+						if (utestName[i] >= 'A' && utestName[i] <= 'Z')
+						{
+							reducedName += utestName[i];
+						}
+					}
+					if (testID == reducedName)
+					{
+						testsToRun.insert(utest.first);
+						found = true;
+					}
+				}
+			}
+			if (!found)
+			{
+				cerr << "*Warning: No matching test found for input specification "
+						<< testID << endl;
 			}
 		}
 

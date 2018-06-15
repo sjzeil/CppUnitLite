@@ -120,7 +120,7 @@ A unit test of a simple "counter" class might look like:
          assertThat (x.getValue(), is(25));
      }
  
-     UnitTestTimed (longTest, -1L) // No timer: will never time out
+     UnitTestTimed (longTestCase, -1L) // No timer: will never time out
      {
          MyClass x (23);
 	     for (int i = 0; i < 10000; ++i)
@@ -149,12 +149,20 @@ or
 
 would run only the second test above, but any of the following
 
-      ./unittest testConstructor testIncrement longTest
+      ./unittest testConstructor testIncrement longTestCase
       ./unittest est
       ./unittest
  
 would run all three tests.
 
+If a test name in the command line does not match any tests according to
+the above rules, it will be checked to see if it matches any test cases
+by taking the first letter of their names followed by the capitalized letters
+in their names.  For example,
+
+      ./unittest tI lTC
+
+would run the `testIncrement` and `longTestCase` tests. 
 
 # Compiling Unit Tests
 
@@ -192,7 +200,11 @@ easy launch points for debugging.  Some tips to consider:
 * Turn off the timing function when debugging. Obviously, if your unit
    tests fail automatically when you spend morethan 0.5 seconds (the default) 
    or any other short time, this will interfere with using a debugger to set
-   break points, step through code, etc.   You can turn off the timing by
+   break points, step through code, etc.   
+   
+   In most instances, CPPUnitLite will automatically detect that you are
+   running in a debugger and will turn off the timing feature. If for some
+   reason this does not work, you can turn off the timing by
    placing
    
         #define DEFAULT_UNIT_TEST_TIME_LIMIT -1L 
@@ -221,4 +233,7 @@ easy launch points for debugging.  Some tips to consider:
   break is forced before abandoning the test case.  Although the break will
   be deeper in the call stack than the failed assertion, it should still
   be possible to use the debugger examine the data at the point of the failure.      
-  
+
+* Command line selection of which tests to run will now accept camelCase
+  abbreviations.  For example, if you have "UnitTest (testStringMatchers)", you
+  can request this at the command line as  "tSM".   
