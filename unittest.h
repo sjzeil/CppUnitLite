@@ -195,16 +195,25 @@
 
 
 #define assertTrue(cond) CppUnitLite::UnitTest::checkTest\
+	(CppUnitLite::AssertionResult(cond,"",""), #cond, __FILE__, __LINE__)
+
+#define assertTruex(cond) CppUnitLite::UnitTest::checkTest\
 	(cond, #cond, __FILE__, __LINE__)
 
 #define assertFalse(cond) CppUnitLite::UnitTest::checkTest\
+	(CppUnitLite::AssertionResult(!(cond),"",""), std::string("!(") +  #cond + ")", __FILE__, __LINE__)
+
+#define assertFalsex(cond) CppUnitLite::UnitTest::checkTest\
 	(!(cond), std::string("!(") +  #cond + ")", __FILE__, __LINE__)
 
-#define assertEqual( x, y ) CppUnitLite::UnitTest::checkTest ((x)==(y),\
+#define assertEqual( x, y ) assertThat(x, isEqualTo(y))
+#define assertEqualx( x, y ) CppUnitLite::UnitTest::checkTest ((x)==(y),\
 		"assertEqual("  #x "," #y ")", \
 		__FILE__, __LINE__)
 
-#define assertNotEqual( x , y ) assertFalse ((x)==(y))
+#define assertNotEqual( x , y ) assertThat(x, isNotEqualTo(y))
+
+#define assertNotEqualx( x , y ) assertFalse ((x)==(y))
 
 #define assertNull(x) assertTrue ((x)==nullptr)
 
@@ -229,80 +238,147 @@
 
 namespace CppUnitLite {
 
-// String conversion functions, adapted from
-//   https://www.fluentcpp.com/2017/06/06/using-tostring-custom-types-cpp/
 
 
-template<typename...>
-using try_to_instantiate = void;
 
-using disregard_this = void;
+template <typename T>
+struct has_begin {
+private:
+	template <typename U, class = decltype( std::declval<U&>().begin() ) >
+	static std::true_type try_begin(U&&);
 
-template<template<typename...> class Expression, typename Attempt, typename... Ts>
-struct is_detected_impl : std::false_type{};
+	static std::false_type try_begin(...);
+public:
+	using type = decltype( try_begin( std::declval<T>()));
+    static constexpr bool value = type();
+};
 
-template<template<typename...> class Expression, typename... Ts>
-struct is_detected_impl<Expression, try_to_instantiate<Expression<Ts...>>, Ts...> : std::true_type{};
+template <typename T>
+struct can_be_written {
+private:
+	template <typename U, class = decltype( std::declval<std::ostringstream&>() << std::declval<U&>()) >
+	static std::true_type try_output(U&&);
 
-template<template<typename...> class Expression, typename... Ts>
-constexpr bool is_detected = is_detected_impl<Expression, disregard_this, Ts...>::value;
+	static std::false_type try_output(...);
+public:
+	using type = decltype( try_output( std::declval<T>()));
+    static constexpr bool value = type();
+};
 
-// 1- detecting if std::to_string is valid on T
-template<typename T>
-using std_to_string_expression = decltype(std::to_string(std::declval<T>()));
+template <typename T, typename U>
+std::string getStringRepr(const std::pair<T,U>&  t);
 
-template<typename T>
-constexpr bool has_std_to_string = is_detected<std_to_string_expression, T>;
+template <typename T>
+std::string getStringRepr(T t);
 
-// 2- detecting if to_string is valid on T
-template<typename T>
-using to_string_expression = decltype(to_string(std::declval<T>()));
-
-template<typename T>
-constexpr bool has_to_string = is_detected<to_string_expression, T>;
-
-// 3- detecting T can be sent to an ostringstream
-template<typename T>
-using ostringstream_expression = decltype(std::declval<std::ostringstream&>() << std::declval<T>());
-
-template<typename T>
-constexpr bool has_ostringstream = is_detected<ostringstream_expression, T>;
-
-// 1-  std::to_string is valid on T
-template<typename T, typename std::enable_if<has_std_to_string<T>, int>::type = 0>
-std::string getStringRepr(T const& t)
+template<typename T, typename std::enable_if<can_be_written<T>::value, int>::type = 0>
+std::string getStringRepr2(T const& t)
 {
-	return std::to_string(t);
-}
-
-// 2-  std::to_string is not valid on T, but to_string is
-template<typename T, typename std::enable_if<!has_std_to_string<T>
-&& has_to_string<T>, int>::type = 0>
-std::string getStringRepr(T const& t)
-{
-	return to_string(t);
-}
-
-// 3-  neither std::string nor to_string work on T, let's stream it then
-template<typename T, typename std::enable_if<!has_std_to_string<T>
-&& !has_to_string<T> && has_ostringstream<T>, int>::type = 0>
-std::string getStringRepr(T const& t)
-{
-	std::ostringstream oss;
-	oss << t;
-	return oss.str();
-}
-
-// 4- Streams aren't available either - just give up
-template<typename T, typename std::enable_if<!has_std_to_string<T>
-&& !has_to_string<T> && !has_ostringstream<T>, int>::type = 0>
-std::string getStringRepr(T const& t)
-{
-	return std::string("???");
+	std::ostringstream out;
+	out << t;
+	return out.str();
 }
 
 
 
+template<typename T, typename std::enable_if<!can_be_written<T>::value && has_begin<T>::value, int>::type = 0>
+std::string getStringRepr2(T t)
+{
+	static const unsigned ContainerDisplayLimit = 10;
+	auto n = std::distance(t.begin(), t.end());
+	auto pos = t.begin();
+	std::string result = "[";
+	while (pos != t.end() && n > 0)
+	{
+		result += getStringRepr(*pos);
+		if (n > 1)
+			result += ", ";
+		--n;
+		++pos;
+	}
+	if (n > 0)
+	{
+		result += "... (" + getStringRepr(n) + " additional elements) ...";
+	}
+	result += "]";
+	return result;
+}
+
+template<typename T, typename std::enable_if<!can_be_written<T>::value && !has_begin<T>::value, int>::type = 0>
+std::string getStringRepr2(T t)
+{
+	return "???";
+}
+
+template <typename T, typename U>
+std::string getStringRepr(const std::pair<T,U>&  t)
+{
+	return std::string("<") + getStringRepr(t.first) + ", "
+			+ getStringRepr(t.second) + ">";
+}
+
+template <typename Tuple, std::size_t size, std::size_t remaining>
+struct getTupleRepr
+{
+	static std::string getContentRepr(Tuple t)  {
+		std::string separator = (remaining > 1)? std::string(", ") : std::string();
+		return  getStringRepr(std::get<size-remaining>(t))
+				+ separator
+				+ getTupleRepr<Tuple,size, remaining-1>::getContentRepr(t);
+	}
+};
+
+
+template <typename Tuple, std::size_t size>
+struct getTupleRepr<Tuple, size, 0>
+{
+	static std::string getContentRepr(Tuple t)  {
+		return  "";
+	}
+};
+
+template <typename Tuple>
+std::string getTupleStringRepr(Tuple t)
+{
+	return std::string("<")
+			+ getTupleRepr<Tuple,
+				std::tuple_size<Tuple>::value,
+				std::tuple_size<Tuple>::value>::getContentRepr(t)
+			+ ">";
+}
+
+template <typename... T>
+std::string getStringRepr(const std::tuple<T...>&  t)
+{
+	return getTupleStringRepr(t);
+}
+
+template <typename T>
+std::string getStringRepr(T t)
+{
+	return getStringRepr2(t);
+}
+template <>
+std::string getStringRepr(std::string t);
+template <>
+std::string getStringRepr(const char t[]);
+template <>
+std::string getStringRepr(char t);
+template <>
+std::string getStringRepr(bool b);
+
+
+
+class AssertionResult {
+public:
+	bool result; ///> True iff assertion passed
+	std::string passExplanation;  ///> Optional explanation for passing;
+	std::string failExplanation;  ///> Optional explanation for failure;
+
+	AssertionResult (bool theResult, std::string passExplain,
+					 std::string failExplain);
+
+};
 
 
 /**
@@ -329,8 +405,27 @@ public:
 		UnitTestFailure (const char* conditionStr,
 				const char* fileName, int lineNumber);
 
+		UnitTestFailure (const std::string& conditionStr,
+				const char* fileName, int lineNumber);
+
 		virtual const char* what() const noexcept;
 	};
+
+	/**
+	 * The main test function - normally called via one of the macros
+	 * declared following this class.  Does nothing if the assertion
+	 * was passed, but throws an exception if the assertion was failed.
+	 *
+	 * @param result the assertion condition, "" if passed, otherwise
+	 *                contains an explanation for the failure.
+	 * @param conditionStr a string rendering of the assertion condition.
+	 * @param fileName Source code file in which the assertion occurs,
+	 * @param lineNumber Source code line number at which the assertion occurs,
+	 * @throws UnitTestFailure  if condition is false.
+	 */
+	static void checkTest (AssertionResult result, std::string conditionStr,
+			const char* fileName, int lineNumber);
+
 
 	/**
 	 * The main test function - normally called via one of the macros
@@ -343,21 +438,8 @@ public:
 	 * @param lineNumber Source code line number at which the assertion occurs,
 	 * @throws UnitTestFailure  if condition is false.
 	 */
-	static void checkTest (bool condition, const char* conditionStr,
-			const char* fileName, int lineNumber);
-	/**
-	 * The main test function - normally called via one of the macros
-	 * declared following this class.  Does nothing if the assertion
-	 * was passed, but throws an exception if the assertion was failed.
-	 *
-	 * @param condition the assertion condition, true iff passed.
-	 * @param conditionStr a string rendering of the assertion condition.
-	 * @param fileName Source code file in which the assertion occurs,
-	 * @param lineNumber Source code line number at which the assertion occurs,
-	 * @throws UnitTestFailure  if condition is false.
-	 */
-	static void checkTest (bool condition, const std::string& conditionStr,
-			const char* fileName, int lineNumber);
+//	static void checkTest (bool condition, const std::string& conditionStr,
+//			const char* fileName, int lineNumber);
 
 
 	// Summary info about tests conducted so far
@@ -577,22 +659,30 @@ constexpr auto container_has_keytype(C const& c)
 
 
 template <typename Container, typename Element>
-bool find_in_container_impl (const Container& c, const Element& e, std::false_type)
+long find_in_container_impl (const Container& c, const Element& e, std::false_type)
 {
+	long ctr = 0L;
 	for (auto it = c.begin(); it != c.end(); ++it)
+	{
 		if (e == *it)
-			return true;
-	return false;
+			return ctr;
+		++ctr;
+	}
+	return -1L;
 }
 
 template <typename Container, typename Element>
-bool find_in_container_impl (const Container& c, const Element& e, std::true_type)
+long find_in_container_impl (const Container& c, const Element& e, std::true_type)
 {
-	return c.find(e) != c.end();
+	auto pos = c.find(e);
+	if (c.find(e) != c.end())
+		return (long)distance(c.begin(), pos);
+	else
+		return -1L;
 }
 
 template <typename Container, typename Element>
-bool find_in_container (const Container& c, const Element& e)
+long find_in_container (const Container& c, const Element& e)
 {
 	return find_in_container_impl (c, e, container_has_keytype(c));
 }
@@ -603,97 +693,156 @@ bool find_in_container (const Container& c, const Element& e)
 
 template <typename T>
 class EqualToMatcher {
-	const T hold;
+	const T right;
 public:
-	EqualToMatcher (const T& t): hold(t) {}
-	bool eval(const T& t) const {
-		return t == hold;
+	EqualToMatcher (const T& t)
+	: right(t) {}
+
+	/**
+	 * Evaluate the condition denoted by this matcher.
+	 */
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		std::string explain = "Expected: "
+				+ rightStr
+		        + "\n\tObserved: "
+				+ leftStr;
+
+		return AssertionResult(left == right,
+					"Both values were: " + getStringRepr(left),
+					explain
+					);
 	}
 };
 
 template <typename T, typename U>
 class ApproximatelyEqualToMatcher {
-	const T hold;
+	const T right;
 	const U delta;
 public:
-	ApproximatelyEqualToMatcher (const T& t, const U& d): hold(t), delta(d) {}
-	bool eval(const T& t) const {
-		return hold - delta <= t &&  t <= hold + delta;
+	ApproximatelyEqualToMatcher (const T& t, const U& d): right(t), delta(d) {}
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightPlusStr = CppUnitLite::getStringRepr(right+delta);
+		std::string rightMinusStr = CppUnitLite::getStringRepr(right-delta);
+		std::string passExplain = leftStr + " is between " + rightMinusStr
+				+ " and " + rightPlusStr;
+		if (left < right - delta)
+			return AssertionResult(false,
+					passExplain,
+					leftStr + " is below "
+					+ getStringRepr(right-delta));
+		else if (left > right + delta)
+			return AssertionResult(false,
+					passExplain,
+					leftStr + " is above "
+					+ getStringRepr(right+delta));
+		else
+			return AssertionResult(true, passExplain, "");
 	}
 };
 
 template <typename T>
 class NotEqualToMatcher {
-	const T hold;
+	const T right;
 public:
-	NotEqualToMatcher (const T& t): hold(t) {}
-	bool eval(const T& t) const {
-		return !(t == hold);
+	NotEqualToMatcher (const T& t): right(t) {}
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		std::string explain = "Expected: "
+				+ rightStr
+		        + "\n\tObserved: "
+				+ leftStr;
+		return AssertionResult(!(left == right), explain,
+					"Both values were: " + getStringRepr(left)
+					);
 	}
 };
 
 template <typename T>
 class LessThanMatcher {
-	const T hold;
+	const T right;
 public:
-	LessThanMatcher (const T& t): hold(t) {}
-	bool eval(const T& t) const {
-		return t < hold;
+	LessThanMatcher (const T& t): right(t) {}
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		return AssertionResult(left < right,
+					leftStr + " is less than " + rightStr,
+					leftStr + " is not less than " + rightStr
+					);
 	}
 };
 
 template <typename T>
 class GreaterThanMatcher {
-	const T hold;
+	const T right;
 public:
-	GreaterThanMatcher (const T& t): hold(t) {}
-	bool eval(const T& t) const {
-		return hold < t;
+	GreaterThanMatcher (const T& t): right(t) {}
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		return AssertionResult(right < left,
+					leftStr + " is greater than " + rightStr,
+					leftStr + " is not greater than " + rightStr
+					);
 	}
 };
 
 template <typename T>
 class LessThanOrEqualToMatcher {
-	const T hold;
+	const T right;
 public:
-	LessThanOrEqualToMatcher (const T& t): hold(t) {}
-	bool eval(const T& t) const {
-		return !(hold < t);
+	LessThanOrEqualToMatcher (const T& t): right(t) {}
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		return AssertionResult(!(right < left),
+					leftStr + " is less than or equal to " + rightStr,
+					leftStr + " is greater than " + rightStr
+					);
 	}
 };
 
 
 template <typename T>
 class GreaterThanOrEqualToMatcher {
-	const T hold;
+	const T right;
 public:
-	GreaterThanOrEqualToMatcher (const T& t): hold(t) {}
-	bool eval(const T& t) const {
-		return !(t < hold);
+	GreaterThanOrEqualToMatcher (const T& t): right(t) {}
+	AssertionResult eval(const T& left) const {
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		return AssertionResult(!(left < right),
+					leftStr + " is greater than or equal to " + rightStr,
+					leftStr + " is less than " + rightStr
+					);
 	}
 };
 
 //// String Matchers
 
 class StringContainsMatcher {
-	const std::string hold;
+	const std::string right;
 public:
 	StringContainsMatcher (const std::string& t);
-	bool eval(const std::string& e) const;
+	AssertionResult eval(const std::string& e) const;
 };
 
 class StringEndsWithMatcher {
-	const std::string hold;
+	const std::string right;
 public:
 	StringEndsWithMatcher (const std::string& t);
-	bool eval(const std::string& e) const;
+	AssertionResult eval(const std::string& e) const;
 };
 
 class StringBeginsWithMatcher {
-	const std::string hold;
+	const std::string right;
 public:
 	StringBeginsWithMatcher (const std::string& t);
-	bool eval(const std::string& e) const;
+	AssertionResult eval(const std::string& e) const;
 };
 
 
@@ -701,12 +850,12 @@ public:
 
 class NullMatcher {
 public:
-	bool eval(void* p) const;
+	AssertionResult eval(void* p) const;
 };
 
 class NotNullMatcher {
 public:
-	bool eval(void* p) const;
+	AssertionResult eval(void* p) const;
 };
 
 
@@ -717,13 +866,20 @@ public:
 
 template <typename Element>
 class ContainsMatcher {
-	Element hold;
+	Element right;
 public:
-	ContainsMatcher (Element e) : hold(e) {}
+	ContainsMatcher (Element e) : right(e) {}
 
 	template <typename Container>
-	bool eval(const Container& c) const {
-		return find_in_container(c, hold);
+	AssertionResult eval(const Container& c) const {
+		std::string containerStr = CppUnitLite::getStringRepr(c);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		long pos = find_in_container(c, right);
+		return AssertionResult(pos >= 0,
+				"Found " + rightStr + " in position " + getStringRepr(pos)
+					+ " of " + containerStr,
+				"Could not find " + rightStr + " in " + containerStr
+				);
 	}
 
 };
@@ -739,16 +895,15 @@ public:
 	HasEntryMatcher (const Key& k, const Data& d) : key(k), data(d) {}
 
 	template <typename Container>
-	bool eval(const Container& c) const {
+	AssertionResult eval(const Container& c) const {
+		std::string containerStr = CppUnitLite::getStringRepr(c);
+		std::string keyStr = CppUnitLite::getStringRepr(key);
 		auto pos = c.find(key);
-		if (pos != c.end())
-		{
-			return (pos->second == data);
-		}
-		else
-		{
-			return false;
-		}
+		return AssertionResult(pos != c.end(),
+				"Found " + getStringRepr(*pos)
+					+ " in " + containerStr,
+				"Could not find " + keyStr + " in " + containerStr
+				);
 	}
 
 };
@@ -773,23 +928,68 @@ public:
 template <typename... Ts>
 class HasItemsMatcher {
 	using Element = typename std::common_type<Ts...>::type;
-    typename std::vector<Element> hold;
+    typename std::vector<Element> right;
 public:
-    HasItemsMatcher (Ts... ts): hold({ts...})
+    HasItemsMatcher (Ts... ts): right({ts...})
 	{ }
 
     template <typename Container>
-    bool eval (const Container& c) const
+    AssertionResult eval (const Container& c) const
     {
-    	for (const Element& e: hold)
+    	std::string cStr = getStringRepr(c);
+    	std::string foundAll = "Found all of " + getStringRepr(right) + " in " + cStr;
+    	for (const Element& e: right)
     	{
-    		if (!find_in_container(c, e)) return false;
+    		if (find_in_container(c, e) < 0L) {
+    			std::string explain = "Did not find " + getStringRepr(e)
+    					+ " in " + cStr;
+    			return AssertionResult(false,
+    					foundAll,
+						explain);
+    		}
     	}
-    	return true;
+    	return AssertionResult(true, foundAll, foundAll);
     }
 };
 
 
+template <typename Iterator1>
+class MatchesMatcher {
+	const IteratorRange<Iterator1> range1;
+public:
+	MatchesMatcher (IteratorRange<Iterator1> r1) : range1(r1) {}
+
+	template <typename Iterator2>
+	AssertionResult eval(IteratorRange<Iterator2> range2) const {
+		auto d1 = std::distance(range1.begin(), range1.end());
+		auto d2 = std::distance(range2.begin(), range2.end());
+		if (d1 == d2)
+		{
+			Iterator1 pos1 = range1.begin();
+			Iterator2 pos2 = range2.begin();
+			while (pos1 != range1.end())
+			{
+				if (!(*pos1 == *pos2))
+				{
+					return AssertionResult (false, "",
+							"In position "
+							+ getStringRepr(std::distance(range1.begin(), pos1))
+							+ ", "
+							+ getStringRepr(*pos1)
+							+ " != " + getStringRepr(*pos2)
+							);
+				}
+				++pos1;
+				++pos2;
+			}
+			return AssertionResult (true, "All corresponding elements were equal.","");
+		}
+		else
+			return AssertionResult(false, "",
+					"Ranges are of different length (" + getStringRepr(d1)
+					+ " and " + getStringRepr(d2) + ")");
+	}
+};
 
 
 template <typename Container>
@@ -799,8 +999,14 @@ public:
 	IsInMatcher (const Container& c) : container(c) {}
 
 	template <typename Element>
-	bool eval(const Element& e) const {
-		return find_in_container(container, e);
+	AssertionResult eval(const Element& e) const {
+    	std::string cStr = getStringRepr(container);
+    	std::string eStr = getStringRepr(e);
+    	long pos = find_in_container(container, e);
+		return AssertionResult(pos >= 0L,
+				"Found " + eStr + " in postion " + getStringRepr(pos)
+					+ " of " + cStr,
+				"Could not find " + eStr + " in " + cStr);
 	}
 
 };
@@ -817,8 +1023,13 @@ public:
 	IsInRangeMatcher (Iterator b, Iterator e) : start(b), stop(e) {}
 
 	template <typename Element>
-	bool eval(const Element& e) const {
-		return find(start, stop, e) != stop;
+	AssertionResult eval(const Element& e) const {
+		std::string eStr = getStringRepr(e);
+		auto pos = find(start, stop, e);
+		return AssertionResult (pos != stop,
+				"Found " + eStr + " in range, "
+				   + getStringRepr(distance(start,pos)) + " steps from the start",
+				"Could not find " + eStr + " in the range");
 	}
 
 };
@@ -831,12 +1042,13 @@ public:
 
 template <typename T>
 class NotMatcher {
-	T hold;
+	T right;
 public:
-	NotMatcher (const T& t): hold(t) {}
+	NotMatcher (const T& t): right(t) {}
 	template <typename U>
-	bool eval(const U& u) const {
-		return !(hold.eval(u));
+	AssertionResult eval(const U& u) const {
+		AssertionResult r = right.eval(u);
+		return AssertionResult(!(r.result), r.failExplanation, r.passExplanation);
 	}
 };
 
@@ -848,9 +1060,9 @@ public:
 	{ }
 
     template <typename T>
-    bool eval (const T& t) const
+    AssertionResult eval (const T& t) const
     {
-    	return true;
+    	return AssertionResult(true, "", "");
     }
 };
 template <typename Matcher, typename... Rest>
@@ -862,9 +1074,14 @@ public:
 	{ }
 
     template <typename T>
-    bool eval (const T& t) const
+    AssertionResult eval (const T& t) const
     {
-    	return matcher.eval(t) && rest.eval(t);
+    	AssertionResult result1 = matcher.eval(t);
+    	if (result1.result)
+    	    return rest.eval(t);
+    	else
+    		return AssertionResult(false, "All of the conditions were true",
+    				result1.failExplanation);
     }
 };
 
@@ -877,9 +1094,9 @@ public:
 	{ }
 
     template <typename T>
-    bool eval (const T& t) const
+    AssertionResult eval (const T& t) const
     {
-    	return false;
+    	return AssertionResult(false, "", "");
     }
 };
 template <typename Matcher, typename... Rest>
@@ -891,35 +1108,45 @@ public:
 	{ }
 
     template <typename T>
-    bool eval (const T& t) const
+    AssertionResult eval (const T& t) const
     {
-    	return matcher.eval(t) || rest.eval(t);
+    	AssertionResult result1 = matcher.eval(t);
+    	if (!result1.result)
+    			return rest.eval(t);
+    	else
+    		return AssertionResult(true, result1.passExplanation,
+    				"None of the conditions were true");
     }
 };
-
 
 
 
 template <typename... T>
 class OneOfMatcher {
 	using Element = typename std::common_type<T...>::type;
-    typename std::vector<Element> hold;
+    typename std::vector<Element> right;
 public:
-    OneOfMatcher (T... t): hold({std::forward<T>(t)...})
+    OneOfMatcher (T... t): right({std::forward<T>(t)...})
 	{ }
 
-    bool eval (const Element& t) const
+    AssertionResult eval (const Element& left) const
     {
-    	for (const Element& e: hold)
+		std::string leftStr = CppUnitLite::getStringRepr(left);
+		std::string rightStr = CppUnitLite::getStringRepr(right);
+		std::string foundMessage = "Found " + leftStr + " in " + rightStr;
+		std::string notFoundMessage = "Could not find " + leftStr + " in " + rightStr;
+    	for (const Element& e: right)
     	{
-    		if (t == e) return true;
+    		if (left == e) return AssertionResult(true, foundMessage, notFoundMessage);
     	}
-    	return false;
+    	return AssertionResult(false, foundMessage, notFoundMessage);
     }
 };
 
 
 }
+
+
 
 
 ////  Matchers
@@ -1100,6 +1327,12 @@ template <typename... Ts>
 CppUnitLite::HasItemsMatcher<Ts...> hasItems (Ts... t)
 {
 	return CppUnitLite::HasItemsMatcher<Ts...>(t...);
+}
+
+template <typename T>
+CppUnitLite::MatchesMatcher<T> matches (CppUnitLite::IteratorRange<T> range)
+{
+	return CppUnitLite::MatchesMatcher<T>(range);
 }
 
 

@@ -20,9 +20,11 @@ using namespace std;
 
 UnitTest(testRelationals) {
 	assertThat("abc", isEqualTo("abc"));
+	assertThat("abc", isEqualTo(string("abc")));
 	assertThat(string("abc"), isEqualTo("abc"));
 	assertThat(string("abc"), isEqualTo(string("abc")));
 	assertThat(22, !isEqualTo(21));
+
 	assertThat(21, is(21));
 	assertThat(string("abc"), isNotEqualTo("abd"));
 	assertThat(string("abc"), isNotEqualTo(string("bc")));
@@ -42,9 +44,7 @@ UnitTest(testRelationals) {
 	assertThat(string("def"), isGreaterThanOrEqualTo("abc"));
 	assertThat(string("def"), isGreaterThanOrEqualTo("def"));
 
-
     assertThat(23, isOneOf(1, 2, 23, 45));
-
 }
 
 
@@ -81,12 +81,13 @@ UnitTest(testContainers) {
     assertThat(range(v.begin(), v.end()), hasItem(9));
     assertThat(arrayOfLength(numbers, 4), hasItem(3));
 
+    assertThat(range(v.begin(), v.end()), matches(arrayOfLength(numbers, 4)));
+
 
     assertThat(3, isIn(v));
     assertThat(3, isInRange(v.begin(), v.end()));
 
 }
-
 
 UnitTest(testAssocContainers) {
 	int numbers[] = {1, 3, 5, 9};
@@ -121,5 +122,6 @@ UnitTest(testCombinations) {
 	assertThat(23, anyOf(isLessThan(42), isGreaterThan(100)));
 	assertThat(23, !anyOf(isLessThan(2), isGreaterThan(100)));
 }
+
 
 

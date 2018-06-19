@@ -35,6 +35,28 @@ std::vector<std::string> UnitTest::callLog;
 #define breakDebugger { }
 #endif
 
+template <>
+std::string CppUnitLite::getStringRepr(std::string t)
+{
+	return std::string("\"") + t + '"';
+}
+template <>
+std::string CppUnitLite::getStringRepr(const char t[])
+{
+	return CppUnitLite::getStringRepr(std::string(t));
+}
+template <>
+std::string CppUnitLite::getStringRepr(char t)
+{
+	return std::string("'") + t + "'";
+}
+template <>
+std::string CppUnitLite::getStringRepr(bool b)
+{
+	return (b) ? "true" : "false";
+}
+
+
 UnitTest::UnitTestFailure::UnitTestFailure (
 		const char* conditionStr,
 		const char* fileName, int lineNumber)
@@ -51,9 +73,33 @@ UnitTest::UnitTestFailure::UnitTestFailure (
 	}
 }
 
+UnitTest::UnitTestFailure::UnitTestFailure (
+		const std::string& conditionStr,
+		const char* fileName, int lineNumber)
+{
+	if (!UnitTest::expectToFail) {
+		ostringstream out;
+		out << "Failed assertion in "
+				<< currentTest
+				<< " at " << fileName << ", line "
+				<< lineNumber
+				<< "\n\t" << conditionStr;
+		explanation = out.str();
+	} else {
+		explanation = "(expected to fail)";
+	}
+}
+
 const char* UnitTest::UnitTestFailure::what() const noexcept {
 	return explanation.c_str();
 }
+
+
+AssertionResult::AssertionResult (bool theResult, std::string pexplain, std::string fexplain)
+ : result(theResult), passExplanation(pexplain), failExplanation(fexplain)
+{}
+
+
 
 bool UnitTest::debuggerIsRunning()
 {
@@ -77,21 +123,28 @@ bool UnitTest::debuggerIsRunning()
 }
 
 
-void UnitTest::checkTest (bool condition, const char* conditionStr,
+void UnitTest::checkTest (AssertionResult assertionResult, std::string conditionStr,
 		const char* fileName, int lineNumber)
 {
-	if (!(condition))
+	if (!assertionResult.result)
 	{
 		if (debuggerIsRunning()) breakDebugger;  // Unit test has failed.
+		if (assertionResult.failExplanation.size() > 0)
+		{
+			conditionStr += "\n\t" + assertionResult.failExplanation;
+		}
 		throw UnitTestFailure(conditionStr, fileName, lineNumber);
 	}
 }
 
-void UnitTest::checkTest (bool condition, const string& conditionStr,
-		const char* fileName, int lineNumber)
-{
-	checkTest(condition, conditionStr.c_str(), fileName, lineNumber);
-}
+
+
+
+//void UnitTest::checkTest (bool condition, const string& conditionStr,
+//		const char* fileName, int lineNumber)
+//{
+//	checkTest(AssertionResult(condition), conditionStr.c_str(), fileName, lineNumber);
+//}
 
 
 
@@ -386,9 +439,13 @@ void UnitTest::logCall (const std::string& functionName)
 }
 
 
-StringContainsMatcher::StringContainsMatcher (const std::string& t): hold(t) {}
-bool StringContainsMatcher::eval(const std::string& e) const {
-	return e.find(hold) != std::string::npos;
+StringContainsMatcher::StringContainsMatcher (const std::string& t): right(t) {}
+AssertionResult StringContainsMatcher::eval(const std::string& e) const {
+	auto result = e.find(right);
+	return AssertionResult( result != std::string::npos,
+			"Found " + getStringRepr(right) + " starting in position "
+				+ getStringRepr(result) + " of " + getStringRepr(e),
+			getStringRepr(right) + " cannot be found within " + getStringRepr(e));
 }
 
 CppUnitLite::StringContainsMatcher
@@ -403,15 +460,17 @@ contains(const std::string& t)
 	return CppUnitLite::StringContainsMatcher(t);
 }
 
-StringEndsWithMatcher::StringEndsWithMatcher (const std::string& t): hold(t) {}
-bool StringEndsWithMatcher::eval(const std::string& e) const {
-	if (hold.size() <= e.size())
-	{
-		return equal(hold.begin(), hold.end(),
-				e.begin() + e.size() - hold.size());
-	}
-	else
-		return false;
+StringEndsWithMatcher::StringEndsWithMatcher (const std::string& t): right(t) {}
+AssertionResult StringEndsWithMatcher::eval(const std::string& e) const {
+	std::string eStr = getStringRepr(e);
+	std::string rightStr = getStringRepr(right);
+	bool result = (right.size() <= e.size())
+			&& equal(right.begin(), right.end(),
+				e.begin() + e.size() - right.size());
+
+	return AssertionResult(result,
+			eStr + " ends with " + rightStr,
+			eStr + " does not end with " + rightStr);
 }
 
 StringEndsWithMatcher
@@ -427,16 +486,18 @@ endsWith(const std::string& t)
 }
 
 StringBeginsWithMatcher::StringBeginsWithMatcher (const std::string& t)
-: hold(t) {}
+: right(t) {}
 
-bool StringBeginsWithMatcher::eval(const std::string& e) const
+AssertionResult StringBeginsWithMatcher::eval(const std::string& e) const
 {
-	if (hold.size() <= e.size())
-	{
-		return equal(hold.begin(), hold.end(), e.begin());
-	}
-	else
-		return false;
+	std::string eStr = getStringRepr(e);
+	std::string rightStr = getStringRepr(right);
+	bool result = (right.size() <= e.size())
+			&& equal(right.begin(), right.end(), e.begin());
+	return AssertionResult(result,
+			eStr + " begins with " + rightStr,
+			eStr + " does not begin with " + rightStr
+			);
 }
 
 StringBeginsWithMatcher beginsWith(const char* t)
@@ -460,9 +521,9 @@ StringBeginsWithMatcher startsWith(const std::string& t)
 }
 
 
-bool NullMatcher::eval(void* p) const
+AssertionResult NullMatcher::eval(void* p) const
 {
-	return p == nullptr;
+	return AssertionResult(p == nullptr, "", "");
 }
 
 CppUnitLite::NullMatcher isNull()
@@ -470,8 +531,8 @@ CppUnitLite::NullMatcher isNull()
 	return CppUnitLite::NullMatcher();
 }
 
-bool NotNullMatcher::eval(void* p) const {
-	return p != nullptr;
+AssertionResult NotNullMatcher::eval(void* p) const {
+	return AssertionResult(p != nullptr, "", "");
 }
 
 CppUnitLite::NotNullMatcher isNotNull()

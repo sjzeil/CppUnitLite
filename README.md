@@ -222,6 +222,11 @@ easy launch points for debugging.  Some tips to consider:
     so as to focus your debugging efforts.
   
 # What's New?
+
+## June 19, 2018
+
+* Richer messages when assertions fail. Failure messages now render
+  the data values involved in the test. 
  
 ## June 15, 2018
 

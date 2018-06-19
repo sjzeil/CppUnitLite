@@ -50,7 +50,7 @@ $(TARGET): $(OBJS)
 
 
 all: $(TARGET)
-	./$(TARGET)
+#	./$(TARGET)
 
 clean:
 	-/bin/rm -rf *.d *.o $(TARGET) docs

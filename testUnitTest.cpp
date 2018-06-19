@@ -14,25 +14,25 @@ using namespace std;
 
 
 UnitTest(testCheckTestPass) {
-	CppUnitLite::UnitTest::checkTest (true, "t1", "fileName", 42);
+	CppUnitLite::UnitTest::checkTest (CppUnitLite::AssertionResult(true, "", ""), "t1", "fileName", 42);
 }
 
 UnitTest(testCheckTestFail) {
 	CppUnitLite::UnitTest::expectedToFail();
 
-	CppUnitLite::UnitTest::checkTest (false, "t1", "fileName", 42);
+	CppUnitLite::UnitTest::checkTest (CppUnitLite::AssertionResult(false, "", ""), "t1", "fileName", 42);
 }
 
 
 UnitTest(testCheckTestStrPass) {
-	CppUnitLite::UnitTest::checkTest (true, std::string("t1"), "fileName", 42);
+	CppUnitLite::UnitTest::checkTest (CppUnitLite::AssertionResult(true, "", ""), std::string("t1"), "fileName", 42);
 }
 
 
 UnitTest(testCheckTestStrFail) {
 	CppUnitLite::UnitTest::expectedToFail();
 
-	CppUnitLite::UnitTest::checkTest (false, std::string("t1"), "fileName", 42);
+	CppUnitLite::UnitTest::checkTest (CppUnitLite::AssertionResult(false, "", ""), std::string("t1"), "fileName", 42);
 }
 
 
@@ -137,8 +137,9 @@ UnitTest(testLogging) {
 	bar(24, false, "hello", 1.0);
 
 	assertEqual (4, distance(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()));
-	string expected[] = {"bar\t21", "baz\t22\t1", "foo\t23\t0\thello", "bar\t24\t0\thello\t1.000000"};
-	assertTrue (equal(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end(), expected));
+	std::array<string, 4> expected {"bar\t21", "baz\t22\ttrue", "foo\t23\tfalse\t\"hello\"", "bar\t24\tfalse\t\"hello\"\t1"};
+	assertThat (range(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()),
+			matches(range(expected.begin(), expected.end())));
 
 }
 
@@ -153,8 +154,9 @@ UnitTest(testLoggingUnprintable) {
 	foobar(FooBar());
 
 	assertEqual (1, distance(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()));
-	string expected[] = {"foobar\t???"};
-	assertTrue (equal(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end(), expected));
+	std::array<string,1> expected {"foobar\t???"};
+	assertThat (range(CppUnitLite::UnitTest::begin(), CppUnitLite::UnitTest::end()),
+			matches(range(expected.begin(), expected.end())));
 
 }
 
