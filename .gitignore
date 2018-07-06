@@ -6,3 +6,6 @@ make.dep
 /docs/
 /testUnitTest
 /testUnitTest.exe
+/build/
+/.cproject
+/.project
