@@ -66,7 +66,7 @@ UnitTest::UnitTestFailure::UnitTestFailure (
 		out << "Failed assertion " << conditionStr
 				<< " in " << currentTest
 				<< " at " << fileName << ", line "
-				<< lineNumber;
+				<< lineNumber << "\n";
 		explanation = out.str();
 	} else {
 		explanation = "(expected to fail)";
@@ -83,7 +83,7 @@ UnitTest::UnitTestFailure::UnitTestFailure (
 				<< currentTest
 				<< " at " << fileName << ", line "
 				<< lineNumber
-				<< "\n\t" << conditionStr;
+				<< "\n\t" << conditionStr << "\n";
 		explanation = out.str();
 	} else {
 		explanation = "(expected to fail)";
@@ -111,7 +111,8 @@ bool UnitTest::debuggerIsRunning()
     	 firstTime = false;
     	 if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0)
     		 debuggerDetected = true;
-    	 else ptrace(PTRACE_DETACH, 0, 1, 0);
+    	 else
+    		 ptrace(PTRACE_DETACH, 0, 1, 0);
     	 if (debuggerDetected)
     	 {
     		 cerr << "*Debugger detected -- test time limits will be ignored."
@@ -445,7 +446,7 @@ AssertionResult StringContainsMatcher::eval(const std::string& e) const {
 	return AssertionResult( result != std::string::npos,
 			"Found " + getStringRepr(right) + " starting in position "
 				+ getStringRepr(result) + " of " + getStringRepr(e),
-			getStringRepr(right) + " cannot be found within " + getStringRepr(e));
+			"Within " + getStringRepr(e) + ", cannot find " + getStringRepr(right));
 }
 
 CppUnitLite::StringContainsMatcher
@@ -521,7 +522,7 @@ StringBeginsWithMatcher startsWith(const std::string& t)
 }
 
 
-AssertionResult NullMatcher::eval(void* p) const
+AssertionResult NullMatcher::eval(const void* p) const
 {
 	return AssertionResult(p == nullptr, "", "");
 }
@@ -531,7 +532,7 @@ CppUnitLite::NullMatcher isNull()
 	return CppUnitLite::NullMatcher();
 }
 
-AssertionResult NotNullMatcher::eval(void* p) const {
+AssertionResult NotNullMatcher::eval(const void* p) const {
 	return AssertionResult(p != nullptr, "", "");
 }
 

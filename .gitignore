@@ -9,3 +9,5 @@ make.dep
 /build/
 /.cproject
 /.project
+/.settings/
+/demoFailures

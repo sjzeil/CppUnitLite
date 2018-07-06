@@ -43,14 +43,22 @@ DEPENDENCIES = $(CPPS:%.cpp=%.d)
 # Targets:
 # 
 
-$(TARGET): $(OBJS)
+$(TARGET): testStringRepr.o testMatchers.o testUnitTest.o unittest.o
 	$(LINK) $(FLAGS) -o $(TARGET) $^ $(LFLAGS)
 
 
+demoFailures: demoFailures.o unittest.o
+	$(LINK) $(FLAGS) -o $@ $^ $(LFLAGS)
 
 
-all: $(TARGET)
+
+all: $(TARGET) demoFailures
 #	./$(TARGET)
+
+
+
+
+
 
 clean:
 	-/bin/rm -rf *.d *.o $(TARGET) docs

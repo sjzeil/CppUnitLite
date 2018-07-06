@@ -850,12 +850,12 @@ public:
 
 class NullMatcher {
 public:
-	AssertionResult eval(void* p) const;
+	AssertionResult eval(const void* p) const;
 };
 
 class NotNullMatcher {
 public:
-	AssertionResult eval(void* p) const;
+	AssertionResult eval(const void* p) const;
 };
 
 
@@ -899,11 +899,21 @@ public:
 		std::string containerStr = CppUnitLite::getStringRepr(c);
 		std::string keyStr = CppUnitLite::getStringRepr(key);
 		auto pos = c.find(key);
-		return AssertionResult(pos != c.end(),
-				"Found " + getStringRepr(*pos)
+		if (pos != c.end())
+		{
+			return AssertionResult(data == pos->second,
+					"Found " + getStringRepr(*pos)
 					+ " in " + containerStr,
-				"Could not find " + keyStr + " in " + containerStr
-				);
+					"Could not find <" + keyStr + ", " + getStringRepr(data)
+					+ "> in " + containerStr
+			);
+		}
+		else
+			return AssertionResult(pos != c.end(),
+					"Found " + getStringRepr(*pos)
+					+ " in " + containerStr,
+					"Could not find " + keyStr + " in " + containerStr
+			);
 	}
 
 };
