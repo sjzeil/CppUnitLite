@@ -43,6 +43,9 @@ DEPENDENCIES = $(CPPS:%.cpp=%.d)
 # Targets:
 # 
 
+all: $(TARGET) demoFailures
+#	./$(TARGET)
+
 $(TARGET): testStringRepr.o testMatchers.o testUnitTest.o unittest.o
 	$(LINK) $(FLAGS) -o $(TARGET) $^ $(LFLAGS)
 
@@ -52,8 +55,6 @@ demoFailures: demoFailures.o unittest.o
 
 
 
-all: $(TARGET) demoFailures
-#	./$(TARGET)
 
 
 

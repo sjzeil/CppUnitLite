@@ -386,11 +386,13 @@ public:
  */
 class UnitTest {
 private:
+	static bool gTestMode;
 	static long numSuccesses;
 	static long numFailures;
 	static long numErrors;
 	static std::string currentTest;
 
+	static std::vector<std::string> failedTests;
 	static std::vector<std::string> callLog;
 
 public:
@@ -483,16 +485,16 @@ public:
 	 *
 	 * @param nTests number of test name substrings
 	 * @param testNames  array of possible substrings of test names
+	 * @param programName path to program executable
 	 */
-	static void runTests (int nTests, char** testNames);
+	static void runTests (int nTests, char** testNames, char* programName);
 
 	/**
 	 * Print a simple summary report. Includes number of tests passed,
 	 * failed, and erroneously termnated.
 	 *
-	 * @param out stream to which to write the report
 	 */
-	static void report (std::ostream& out);
+	static void report ();
 
 	/**
 	 * Register a new UnitTest, making it eligible for running.
@@ -633,6 +635,17 @@ public:
 			std::string& msg);
 
 	static bool debuggerIsRunning();
+
+	static void msgStarting (unsigned nTests);
+	static void msgRunning (std::string testName);
+	static void msgPassed (std::string testName, unsigned timeMS);
+	static void msgXPassed (std::string testName, unsigned timeMS);
+	static void msgFailed (std::string testName, unsigned timeMS);
+	static void msgXFailed (std::string testName, unsigned timeMS);
+	static void msgError (std::string testName, unsigned timeMS);
+	static void msgSummary ();
+	static void msg (const std::string& detailMessage);
+
 };
 
 inline void expectedToFail()

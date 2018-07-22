@@ -164,6 +164,13 @@ in their names.  For example,
 
 would run the `testIncrement` and `longTestCase` tests. 
 
+### Running from Within Eclipse
+
+CppUnitLite tests can be launched from Eclipse using the C++ Unit Test
+support and the `Google Tests Runner`.   Results will be displayed in the
+C/C++ Unit pane.   
+
+
 # Compiling Unit Tests
 
 If your project has its own `main()` function, be aware that this
@@ -198,7 +205,7 @@ One of the major benefits of the *Unit style of testing is that it provides
 easy launch points for debugging.  Some tips to consider:
 
 * Turn off the timing function when debugging. Obviously, if your unit
-   tests fail automatically when you spend morethan 0.5 seconds (the default) 
+   tests fail automatically when you spend more than 0.5 seconds (the default) 
    or any other short time, this will interfere with using a debugger to set
    break points, step through code, etc.   
    
@@ -209,8 +216,8 @@ easy launch points for debugging.  Some tips to consider:
    
         #define DEFAULT_UNIT_TEST_TIME_LIMIT -1L 
 
-    in front of your `UnitTest`s.  The negative value disables the default
-    time-out behavior.  
+   in front of your `UnitTest`s.  The negative value disables the default
+   time-out behavior.  
    
 * If you are setting breakpoints
   inside your code, you may find it distracting that these
@@ -220,8 +227,25 @@ easy launch points for debugging.  Some tips to consider:
     Use the command line arguments (see **Running Your Tests**, above) to
     limit your debugging runs to the test(s) that you are actually failing
     so as to focus your debugging efforts.
+
+### Debugging from Within Eclipse
+
+If CppUnitLite tests have been run in Eclipse using the C++ Unit Test
+support and the `Google Tests Runner`, then individual tests can be selected
+in the C/C++ Unit pane for re-execution or debugging.
+
+If a test assertion fails during Eclipse debugging, an automatic breakpoint
+will be triggered. 
   
 # What's New?
+
+## July 22, 2018
+
+CppUnitLite tests can now be launched from Eclipse using the C++ Unit Test
+support and the `Google Tests Runner`.   Results will be displayed in the
+C/C++ Unit pane.   Individual tests can be selected in that pane for
+re-execution or debugging.
+
 
 ## June 19, 2018
 

@@ -22,12 +22,14 @@ using namespace CppUnitLite;
 
 std::map<std::string, UnitTest::BoundedTest> *UnitTest::tests = nullptr;
 
+bool UnitTest::gTestMode = false;
 long UnitTest::numSuccesses = 0L;
 long UnitTest::numFailures = 0L;
 long UnitTest::numErrors = 0L;
 string UnitTest::currentTest;
 bool UnitTest::expectToFail = false;
 std::vector<std::string> UnitTest::callLog;
+std::vector<std::string> UnitTest::failedTests;
 
 #ifdef __amd64__
 #define breakDebugger { asm volatile ("int $3"); }
@@ -79,10 +81,7 @@ UnitTest::UnitTestFailure::UnitTestFailure (
 {
 	if (!UnitTest::expectToFail) {
 		ostringstream out;
-		out << "Failed assertion in "
-				<< currentTest
-				<< " at " << fileName << ", line "
-				<< lineNumber
+		out << fileName << ":" << lineNumber << ": Failure"
 				<< "\n\t" << conditionStr << "\n";
 		explanation = out.str();
 	} else {
@@ -115,8 +114,7 @@ bool UnitTest::debuggerIsRunning()
     		 ptrace(PTRACE_DETACH, 0, 1, 0);
     	 if (debuggerDetected)
     	 {
-    		 cerr << "*Debugger detected -- test time limits will be ignored."
-    				 << endl;
+    		 UnitTest::msg("*Debugger detected -- test time limits will be ignored.\n");
     	 }
      }
 #endif
@@ -129,7 +127,15 @@ void UnitTest::checkTest (AssertionResult assertionResult, std::string condition
 {
 	if (!assertionResult.result)
 	{
-		if (debuggerIsRunning()) breakDebugger;  // Unit test has failed.
+		if (debuggerIsRunning())
+		{
+			string explanation = "Failed assertion: " + conditionStr
+					+ "\n" + assertionResult.failExplanation;
+			breakDebugger;
+			// Unit test has failed.
+			// Examine explanation for information
+			explanation = explanation + " ";
+		}
 		if (assertionResult.failExplanation.size() > 0)
 		{
 			conditionStr += "\n\t" + assertionResult.failExplanation;
@@ -150,13 +156,9 @@ void UnitTest::checkTest (AssertionResult assertionResult, std::string condition
 
 
 // Print a simple summary report
-void UnitTest::report (std::ostream& out)
+void UnitTest::report ()
 {
-	out << "UnitTest: passed " << numSuccesses << " out of "
-			<< getNumTests() << " tests, for a success rate of "
-			<< std::showpoint << std::fixed << std::setprecision(1)
-	<< (100.0 * numSuccesses)/(float)getNumTests()
-	<< "%" << endl;
+	UnitTest::msgSummary();
 }
 
 
@@ -187,57 +189,62 @@ int UnitTest::runTestGuarded (std::string testName, TestFunction u,
 {
 	currentTest = testName;
 	expectToFail = false;
-	cerr << testName << ": " << flush;
+	UnitTest::msgRunning(testName);
 	try {
 		signal(SIGFPE, &unitTestSignalHandler);
 		signal(SIGSEGV, &unitTestSignalHandler);
 		if (setjmp(unitTestSignalEnv)) {
 			// Runtime error was caught
 			if (!expectToFail) {
-			cerr << "failed" << endl;
-			ostringstream out;
-			out << "runtime error " << unitTestLastSignal;
-			testExplanation =  out.str();
-			return -1;
+				UnitTest::msgFailed(testName, 0);
+				ostringstream out;
+				out << "runtime error " << unitTestLastSignal;
+				testExplanation =  out.str();
+				return -1;
 			} else {
-				cerr << "OK (failed but was expected to fail)" << endl;
+				// OK (failed but was expected to fail)"
+				UnitTest::msgXFailed(testName, 0);
 			}
 		} else {
 			u();
 			if (!expectToFail) {
-				cerr << "OK" << endl;
+				UnitTest::msgPassed(testName, 0);
 			} else {
-				cerr << "Failed (passed but was expected to fail)" << endl;
+				// Failed (passed but was expected to fail
+				UnitTest::msgXPassed(testName, 0);
 				return 0;
 			}
 		}
 		return 1;
 	} catch (UnitTestFailure& ex) {
 		if (!expectToFail) {
-			cerr << "failed" << endl;
+			UnitTest::msgFailed(testName, 0);
 			testExplanation = ex.what();
 			return 0;
 		} else {
-			cerr << "OK (failed but was expected to fail)" << endl;
+			// OK (failed but was expected to fail)"
+			UnitTest::msgXFailed(testName, 0);
 			return 1;
 		}
 	} catch (exception& e) {
 		if (!expectToFail) {
-			cerr << "halted" << endl;
+			UnitTest::msgError(testName, 0);
 			testExplanation = "Unexpected error in " + currentTest
 					+ ": " + e.what();
 			return -1;
 		} else {
-			cerr << "OK (exception but was expected to fail)" << endl;
+			// OK (exception but was expected to fail)"
+			UnitTest::msgXFailed(testName, 0);
 			return 1;
 		}
 	} catch (...) {
 		if (!expectToFail) {
-			cerr << "halted" << endl;
+			UnitTest::msgError(testName, 0);
 			testExplanation = "Unexpected error in " + currentTest;
 			return -1;
 		} else {
-			cerr << "OK (exception but was expected to fail)" << endl;
+			// OK (exception but was expected to fail)"
+			UnitTest::msgXFailed(testName, 0);
 			return 1;
 		}
 	}
@@ -270,16 +277,18 @@ void UnitTest::runTestUntimed (std::string testName, TestFunction u)
 			++numSuccesses;
 		} else if (testResult == 0) {
 			++numFailures;
-			cerr << testExplanation << endl;
+			failedTests.push_back(testName);
+			UnitTest::msg(testExplanation);
 		} else if (testResult == -1) {
 			++numErrors;
-			cerr << testExplanation << endl;
+			failedTests.push_back(testName);
+			UnitTest::msg(testExplanation);
 		}
 	} catch (std::runtime_error& e) {
 		++numErrors;
-		cerr << "Test " << currentTest << " failed due to "
-				<< e.what()
-				<< endl;
+		failedTests.push_back(testName);
+		UnitTest::msg(string("Test ") + currentTest + " failed due to "
+				+ e.what() + "\n");
 	}
 
 
@@ -316,17 +325,21 @@ void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 				++numSuccesses;
 			} else if (testResult == 0) {
 				++numFailures;
-				cerr << testExplanation << endl;
+				failedTests.push_back(testName);
+				UnitTest::msg(testExplanation);
 			} else if (testResult == -1) {
 				++numErrors;
-				cerr << testExplanation << endl;
+				failedTests.push_back(testName);
+				UnitTest::msg(testExplanation);
 			}
 		} catch (std::runtime_error& e) {
 			++numErrors;
-			cerr << "Test " << currentTest << " still running after "
+			failedTests.push_back(testName);
+			ostringstream out;
+			out << "Test " << currentTest << " still running after "
 					<< timeLimit
-					<< " milliseconds - possible infinite loop?"
-					<< endl;
+					<< " milliseconds - possible infinite loop?\n";
+			UnitTest::msg(out.str());
 		}
 	}
 	else
@@ -351,10 +364,62 @@ void UnitTest::runTest (std::string testName, TestFunction u, long int timeLimit
 // 0 <= i <= nTests
 //
 // Special case: If nTests == 0, runs all unit Tests.
-void UnitTest::runTests (int nTests, char** testNames)
+void UnitTest::runTests (int nTests, char** testNames, char* program)
 {
 	set<string> testsToRun;
-	if (nTests > 0) {
+	gTestMode = false;
+	// Check for GTest emulation
+	for (int i = 0; i < nTests; ++i)
+	{
+		string arg = testNames[i];
+		static const string GTEST = "--gtest_";
+		if (arg.length() > GTEST.length()
+				&& arg.substr(0, GTEST.length()) == GTEST)
+		{
+			gTestMode = true;
+			static const string GTESTFILTER = "--gtest_filter=";
+			if (arg.length() > GTESTFILTER.length()
+					&& arg.substr(0, GTESTFILTER.length()) == GTESTFILTER)
+			{
+				string filters = arg.substr(GTESTFILTER.length());
+				string::size_type startPos = 0;
+				string::size_type endPos = filters.find(":", startPos);
+				while (endPos != string::npos && endPos < filters.length())
+				{
+					string testName = filters.substr(startPos, endPos-startPos);
+					if (testName.length() > 0)
+					{
+						unsigned pos = testName.find(".");
+						if (pos != string::npos)
+						{
+							testName = testName.substr(pos+1);
+						}
+					}
+					if (testName.length() > 0 && tests->find(testName) != tests->end())
+					{
+						testsToRun.insert(testName);
+					}
+					startPos = endPos+1;
+					endPos = filters.find(":", startPos);
+				}
+				string testName = filters.substr(startPos);
+				if (testName.length() > 0)
+				{
+					unsigned pos = testName.find(".");
+					if (pos != string::npos)
+					{
+						testName = testName.substr(pos+1);
+					}
+				}
+				if (testName.length() > 0 && tests->find(testName) != tests->end())
+				{
+					testsToRun.insert(testName);
+				}
+			}
+		}
+	}
+	if (!gTestMode)
+	{
 		for (int i = 0; i < nTests; ++i)
 		{
 			string testID = testNames[i];
@@ -390,12 +455,14 @@ void UnitTest::runTests (int nTests, char** testNames)
 						<< testID << endl;
 			}
 		}
-
-	} else {
+	}
+	if (testsToRun.size() == 0) {
 		for (const auto& utest: *tests) {
 			testsToRun.insert(utest.first);
 		}
 	}
+	UnitTest::msg(string("Running main() from ") + program);
+	UnitTest::msgStarting(testsToRun.size());
 	for (string testName: testsToRun) {
 		BoundedTest test = (*tests)[testName];
 		runTest (testName, test.unitTest, test.timeLimit);
@@ -438,6 +505,132 @@ void UnitTest::logCall (const std::string& functionName)
 {
 	callLog.push_back (functionName);
 }
+
+
+void UnitTest::msgStarting (unsigned nTests)
+{
+	if (gTestMode)
+	{
+		cout << "[==========] Running " << nTests << " tests from 1 test case.\n";
+		cout << "[----------] Global test environment set-up.\n";
+		cout << "[----------] " << nTests << " tests from Test" << endl;
+	}
+	else
+		cout << "Running " << nTests << " tests." << endl;
+}
+
+void UnitTest::msgRunning (std::string testName)
+{
+	if (gTestMode)
+	{
+		cout << "[ RUN      ] Test." << testName << endl;
+	}
+	else
+		cout << testName << ": " << flush;
+}
+
+void UnitTest::msgPassed (std::string testName, unsigned timeMS)
+{
+	if (gTestMode)
+	{
+		cout << "[       OK ] Test." << testName
+				<< " (" << timeMS << " ms)" << endl;
+	}
+	else
+		cout << "OK" << endl;
+}
+
+void UnitTest::msgXPassed (std::string testName, unsigned timeMS)
+{
+	UnitTest::msgFailed(testName, timeMS);
+	UnitTest::msg("Test passed but was expected to fail.");
+}
+
+void UnitTest::msgFailed (std::string testName, unsigned timeMS)
+{
+	if (gTestMode)
+	{
+		cout << "[  FAILED  ] Test." << testName
+				<< " (" << timeMS << " ms)" << endl;
+	}
+	else
+		cout << "FAILED" << endl;
+}
+void UnitTest::msgXFailed (std::string testName, unsigned timeMS)
+{
+	UnitTest::msgPassed(testName, timeMS);
+	UnitTest::msg("Test failed but was expected to fail.");
+}
+
+void UnitTest::msgError (std::string testName, unsigned timeMS)
+{
+	if (gTestMode)
+	{
+		cout << "[  FAILED  ] Test." << testName
+				<< " ( " << timeMS << "ms)" << endl;
+	}
+	else
+		cout << "ERROR" << endl;
+}
+
+void UnitTest::msgSummary ()
+{
+	if (gTestMode)
+	{
+		cout << "[----------] " << numErrors+numFailures+numSuccesses
+				<< " tests from Test (0 ms total)" << endl;
+		cout << "[==========] " << getNumTests()
+				<< " tests from 1 test case ran.(1 ms total)\n";
+		cout << "[  PASSED  ] " << numSuccesses <<
+				((numSuccesses == 1) ? " test." : " tests.") << "\n";
+		int numFailed = numFailures + numErrors;
+		cout << "[  FAILED  ] " << numFailed <<
+				((numFailed == 1) ? " test" : " tests");
+		if (numFailed > 0)
+			cout << ", listed below:" << endl;
+		else
+			cout << "." << endl;
+		for (string failedTest: failedTests)
+		{
+			cout << "[  FAILED  ] Test." << failedTest << endl;
+		}
+		cout << "\n";
+		cout << numFailed << " FAILED TEST";
+		if (numFailed != 1)
+			cout << "S";
+		cout << endl;
+	}
+	else
+	{
+		cout << "UnitTest: passed " << numSuccesses << " out of "
+				<< getNumTests() << " tests, for a success rate of "
+				<< std::showpoint << std::fixed << std::setprecision(1)
+		<< (100.0 * numSuccesses)/(float)getNumTests()
+		<< "%" << endl;
+	}
+}
+
+
+
+
+
+void UnitTest::msg (const std::string& detailMessage)
+{
+	cout << detailMessage;
+	if (detailMessage.size() > 0 &&
+			detailMessage[detailMessage.size()-1] != '\n')
+		cout << "\n";
+	cout << flush;
+}
+
+
+
+
+
+
+
+
+
 
 
 StringContainsMatcher::StringContainsMatcher (const std::string& t): right(t) {}
@@ -544,13 +737,14 @@ CppUnitLite::NotNullMatcher isNotNull()
 
 
 
+
 #ifndef NOMAIN
 
 int main(int argc, char** argv)
 {
-	UnitTest::runTests(argc-1, argv+1);
+	UnitTest::runTests(argc-1, argv+1, argv[0]);
 
-	UnitTest::report(cerr);
+	UnitTest::report();
 
 	return 0;
 }
