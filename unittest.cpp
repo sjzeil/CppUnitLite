@@ -12,8 +12,11 @@
 #include <setjmp.h>
 #include <cstdlib>
 
+#ifndef __MINGW32__
+#ifndef __CYGWIN__
 #include <sys/ptrace.h>
-
+#endif
+#endif
 
 #include "unittest.h"
 
@@ -102,9 +105,10 @@ AssertionResult::AssertionResult (bool theResult, std::string pexplain, std::str
 
 bool UnitTest::debuggerIsRunning()
 {
-     static bool firstTime = true;
      static bool debuggerDetected = false;
 #ifndef __MINGW32__
+#ifndef __CYGWIN__
+     static bool firstTime = true;
      if (firstTime)
      {
     	 firstTime = false;
@@ -117,6 +121,7 @@ bool UnitTest::debuggerIsRunning()
     		 UnitTest::msg("*Debugger detected -- test time limits will be ignored.\n");
     	 }
      }
+#endif
 #endif
      return debuggerDetected;
 }
@@ -196,10 +201,10 @@ int UnitTest::runTestGuarded (std::string testName, TestFunction u,
 		if (setjmp(unitTestSignalEnv)) {
 			// Runtime error was caught
 			if (!expectToFail) {
-				UnitTest::msgFailed(testName, 0);
 				ostringstream out;
 				out << "runtime error " << unitTestLastSignal;
-				testExplanation =  out.str();
+				testExplanation =  out.str() + "\n"
+						+ UnitTest::msgFailed(testName, 0);
 				return -1;
 			} else {
 				// OK (failed but was expected to fail)"
@@ -218,8 +223,8 @@ int UnitTest::runTestGuarded (std::string testName, TestFunction u,
 		return 1;
 	} catch (UnitTestFailure& ex) {
 		if (!expectToFail) {
-			UnitTest::msgFailed(testName, 0);
-			testExplanation = ex.what();
+			testExplanation = ex.what() + std::string("\n")
+					+ UnitTest::msgFailed(testName, 0);
 			return 0;
 		} else {
 			// OK (failed but was expected to fail)"
@@ -333,13 +338,14 @@ void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 				UnitTest::msg(testExplanation);
 			}
 		} catch (std::runtime_error& e) {
-			++numErrors;
+			++numFailures;
 			failedTests.push_back(testName);
 			ostringstream out;
 			out << "Test " << currentTest << " still running after "
 					<< timeLimit
 					<< " milliseconds - possible infinite loop?\n";
-			UnitTest::msg(out.str());
+			UnitTest::msg(out.str() + "\n" +
+					UnitTest::msgFailed(testName, timeLimit));
 		}
 	}
 	else
@@ -542,19 +548,19 @@ void UnitTest::msgPassed (std::string testName, unsigned timeMS)
 
 void UnitTest::msgXPassed (std::string testName, unsigned timeMS)
 {
-	UnitTest::msgFailed(testName, timeMS);
-	UnitTest::msg("Test passed but was expected to fail.");
+	UnitTest::msg("Test passed but was expected to fail.\n"
+			+ UnitTest::msgFailed(testName, timeMS));
 }
 
-void UnitTest::msgFailed (std::string testName, unsigned timeMS)
+std::string UnitTest::msgFailed (std::string testName, unsigned timeMS)
 {
 	if (gTestMode)
 	{
-		cout << "[  FAILED  ] Test." << testName
-				<< " (" << timeMS << " ms)" << endl;
+		return "[  FAILED  ] Test." + testName
+				+ " (" + to_string(timeMS) +  " ms)";
 	}
 	else
-		cout << "FAILED" << endl;
+		return "FAILED";
 }
 void UnitTest::msgXFailed (std::string testName, unsigned timeMS)
 {

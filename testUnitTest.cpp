@@ -65,6 +65,7 @@ UnitTest(testCatchTestDivideByZero) {
 	while (k > 0) --k; // may fool busy-body compilers
 	int m = 1 / k;
 	// Should be caught and recorded as an Error
+	assertTrue (m < m + 1);
 }
 
 
@@ -86,6 +87,7 @@ UnitTestTimed(testTimeout1,100) {
 }
 
 // Example of overriding default limit
+#undef DEFAULT_UNIT_TEST_TIME_LIMIT
 #define DEFAULT_UNIT_TEST_TIME_LIMIT 1000L
 
 UnitTest(testTimeoutDefaultLimit) {

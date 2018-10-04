@@ -287,6 +287,7 @@ std::string getStringRepr2(T t)
 	static const unsigned ContainerDisplayLimit = 10;
 	auto n = std::distance(t.begin(), t.end());
 	auto pos = t.begin();
+	unsigned count = 0;
 	std::string result = "[";
 	while (pos != t.end() && n > 0)
 	{
@@ -295,6 +296,12 @@ std::string getStringRepr2(T t)
 			result += ", ";
 		--n;
 		++pos;
+		++count;
+		if (count >= ContainerDisplayLimit && n > 0)
+		{
+			result += "...";
+			break;
+		}
 	}
 	if (n > 0)
 	{
@@ -640,7 +647,7 @@ public:
 	static void msgRunning (std::string testName);
 	static void msgPassed (std::string testName, unsigned timeMS);
 	static void msgXPassed (std::string testName, unsigned timeMS);
-	static void msgFailed (std::string testName, unsigned timeMS);
+	static std::string msgFailed (std::string testName, unsigned timeMS);
 	static void msgXFailed (std::string testName, unsigned timeMS);
 	static void msgError (std::string testName, unsigned timeMS);
 	static void msgSummary ();
@@ -741,15 +748,12 @@ public:
 		std::string rightMinusStr = CppUnitLite::getStringRepr(right-delta);
 		std::string passExplain = leftStr + " is between " + rightMinusStr
 				+ " and " + rightPlusStr;
-		if (left < right - delta)
+		if (left < right - delta || left > right + delta)
 			return AssertionResult(false,
 					passExplain,
-					leftStr + " is below "
-					+ getStringRepr(right-delta));
-		else if (left > right + delta)
-			return AssertionResult(false,
-					passExplain,
-					leftStr + " is above "
+					leftStr + " is outside the range "
+					+ getStringRepr(right-delta)
+					+ " .. "
 					+ getStringRepr(right+delta));
 		else
 			return AssertionResult(true, passExplain, "");

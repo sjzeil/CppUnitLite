@@ -106,7 +106,7 @@ UnitTest(lessThanOrEqFails) {
 UnitTest(greaterThanFails) {
 	double x = 1.2;
 	double y = 1.0;
-	assertThat(y, isGreaterThan(y));
+	assertThat(y, isGreaterThan(x));
 }
 
 UnitTest(greaterThanOrEqFails) {

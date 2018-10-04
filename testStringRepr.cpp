@@ -34,7 +34,7 @@ UnitTest(testUnprintableRepr) {
 }
 
 UnitTest(testIterableRepr) {
-	std:array<int,3> a1 = {1, 2, 3};
+	array<int,3> a1 = {1, 2, 3};
 	assertThat(CppUnitLite::getStringRepr(a1), is("[1, 2, 3]"));
 	vector<char> v2 = {'a'};
 	assertThat(CppUnitLite::getStringRepr(v2), is("['a']"));
@@ -43,7 +43,7 @@ UnitTest(testIterableRepr) {
 }
 
 UnitTest(testMapRepr) {
-	std:map<int,int> m;
+	map<int,int> m;
 	m[1] = 10;
 	m[2] = 20;
 	assertThat(CppUnitLite::getStringRepr(m), is("[<1, 10>, <2, 20>]"));
