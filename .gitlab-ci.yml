@@ -13,15 +13,17 @@ build-job:
   artifacts:
     paths:
        - README.md
-       - unittest.h
-       - unittest.cpp
+       - lib/src/main/public/unittest.h
+       - lib/src/main/cpp/unittest.cpp
 
 linux-build:
   tags:
     - e-3208
   stage: build
   script:
-    - ./gradlew build --no-daemon
+    - cd lib
+    - chmod +x ../gradlew
+    - ../gradlew build --no-daemon
   only:
     - master
 
@@ -31,7 +33,8 @@ cygwin-build:
   stage: build
   script:
     - path c:\cygwin64\bin;%path%
-    - .\gradlew.bat test --no-daemon
+    - cd lib
+    - ..\gradlew.bat test --no-daemon
   only:
     - master
 
@@ -41,7 +44,8 @@ mingw-build:
   stage: build
   script:
     - path c:\MinGW\bin;%path%
-    - .\gradlew.bat test --no-daemon
+    - cd lib
+    - ..\gradlew.bat test --no-daemon
   only:
     - master
     
