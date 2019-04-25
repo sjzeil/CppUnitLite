@@ -1,4 +1,4 @@
 allprojects {
-    group = 'edu.odu.cs.zeil'
+    group = 'edu.odu.cs.zeil.CppUnitLite'
     version = '1.0'
 }
