@@ -82,7 +82,7 @@ UnitTestTimed(testTimeout1,100) {
 #else
 	std::cerr << "Timeouts cannot be detected in compilers with no thread support"
 			<< std::endl;
-	UnitTest::fail;
+	fail;
 #endif
 }
 
@@ -103,7 +103,7 @@ UnitTest(testTimeoutDefaultLimit) {
 #else
 	std::cerr << "Timeouts cannot be detected in compilers with no thread support"
 			<< std::endl;
-	UnitTest::fail;
+	fail;
 #endif
 }
 void foo() {

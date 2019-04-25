@@ -12,3 +12,5 @@ make.dep
 /.settings/
 /demoFailures
 /Debug/
+/.gradle/
+/.idea/

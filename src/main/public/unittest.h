@@ -219,9 +219,13 @@
 
 #define assertNotNull(x) assertTrue ((x)!=nullptr)
 
-#define succeed CppUnitLite::UnitTest::checkTest (true, "succeed", __FILE__, __LINE__)
+#define succeed CppUnitLite::UnitTest::checkTest (\
+		CppUnitLite::AssertionResult(true,"",""),\
+		"succeed", __FILE__, __LINE__)
 
-#define fail CppUnitLite::UnitTest::checkTest (false, "fail", __FILE__, __LINE__)
+#define fail CppUnitLite::UnitTest::checkTest (\
+		CppUnitLite::AssertionResult(false,"",""), "fail",\
+		__FILE__, __LINE__)
 
 /**
  * Test registration

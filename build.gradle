@@ -1,0 +1,50 @@
+plugins {
+    id 'cpp-library'
+	id 'cpp-unit-test'
+	id "org.ysb33r.doxygen" version "0.5"	
+}
+
+doxygen {
+    generate_html true
+
+	template 'Doxyfile'
+
+    source new File(projectDir,'src/main/cpp')
+    source new File(projectDir,'src/main/public')
+}
+
+
+library {
+    if (System.properties['os.name'].toLowerCase().contains('windows')
+      && System.getenv('PATH').toLowerCase().contains('mingw')) {
+        targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
+    }
+
+    linkage = [Linkage.STATIC];
+
+    binaries.whenElementKnown(CppStaticLibrary) { binary ->
+	    if (toolChain instanceof GccCompatibleToolChain) {
+            def compileTask = compileTask.get()
+		    compileTask.compilerArgs.add("-std=c++11")
+		}
+    }
+}
+
+unitTest {
+    if (System.properties['os.name'].toLowerCase().contains('windows')
+      && System.getenv('PATH').toLowerCase().contains('mingw')) {
+        targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
+    }
+
+    binaries.whenElementKnown(CppTestExecutable) { binary ->
+	    if (toolChain instanceof GccCompatibleToolChain) {
+            def compileTask = compileTask.get()
+		    compileTask.compilerArgs.add("-std=c++11")
+		}
+        if (binary.targetMachine.operatingSystemFamily.linux) {
+            binary.linkTask.get().linkerArgs.add('-pthread')
+        }
+    }
+}
+
+
