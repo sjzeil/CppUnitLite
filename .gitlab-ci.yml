@@ -1,10 +1,11 @@
 stages:
   - build
+  - deploy
  
 build-job:
   tags:
     - e-3208
-  stage: build
+  stage: deploy
   script:
     - echo OK
   only:
@@ -14,3 +15,24 @@ build-job:
        - README.md
        - unittest.h
        - unittest.cpp
+
+linux-build:
+  tags:
+    - e-3208
+  stage: build
+  script:
+    - ./gradlew build
+  only:
+    - gradle
+
+cygwin-job:
+  tags:
+    - sjz-win10
+  stage: build
+  script:
+    - set
+    - path
+    - path c:\cygwin64\bin;%path%
+    - .\gradlew.bat build
+  only:
+    - gradle

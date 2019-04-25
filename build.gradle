@@ -13,14 +13,12 @@ doxygen {
     source new File(projectDir,'src/main/public')
 }
 
-toolChains {
-    mingw_x86_64(GccCompatibleToolChain) {
-            path rootProject.file('/MinGW/bin')
-            target("windows_x86_64")
-        }
-}
 
 library {
+    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+        targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
+    }
+
     linkage = [Linkage.STATIC];
 
     binaries.whenElementKnown(CppStaticLibrary) { binary ->
@@ -32,6 +30,10 @@ library {
 }
 
 unitTest {
+    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+        targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
+    }
+
     binaries.whenElementKnown(CppTestExecutable) { binary ->
 	    if (toolChain instanceof GccCompatibleToolChain) {
             def compileTask = compileTask.get()
