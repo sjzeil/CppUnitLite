@@ -15,7 +15,8 @@ doxygen {
 
 
 library {
-    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+    if (System.properties['os.name'].toLowerCase().contains('windows')
+      && System.getenv('PATH').toLowerCase().contains('mingw')) {
         targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
     }
 
@@ -30,7 +31,8 @@ library {
 }
 
 unitTest {
-    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+    if (System.properties['os.name'].toLowerCase().contains('windows')
+      && System.getenv('PATH').toLowerCase().contains('mingw')) {
         targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
     }
 

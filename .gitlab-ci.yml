@@ -21,7 +21,7 @@ linux-build:
     - e-3208
   stage: build
   script:
-    - ./gradlew build
+    - ./gradlew build --no-daemon
   only:
     - gradle
 
@@ -31,7 +31,7 @@ cygwin-job:
   stage: build
   script:
     - path c:\cygwin64\bin;%path%
-    - .\gradlew.bat test
+    - .\gradlew.bat test --no-daemon
   only:
     - gradle
 
@@ -41,7 +41,7 @@ mingw-job:
   stage: build
   script:
     - path c:\MinGW\bin;%path%
-    - .\gradlew.bat test
+    - .\gradlew.bat test --no-daemon
   only:
     - gradle
     
