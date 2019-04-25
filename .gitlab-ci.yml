@@ -23,9 +23,9 @@ linux-build:
   script:
     - ./gradlew build --no-daemon
   only:
-    - gradle
+    - master
 
-cygwin-job:
+cygwin-build:
   tags:
     - sjz-win10
   stage: build
@@ -33,9 +33,9 @@ cygwin-job:
     - path c:\cygwin64\bin;%path%
     - .\gradlew.bat test --no-daemon
   only:
-    - gradle
+    - master
 
-mingw-job:
+mingw-build:
   tags:
     - sjz-win10
   stage: build
@@ -43,5 +43,5 @@ mingw-job:
     - path c:\MinGW\bin;%path%
     - .\gradlew.bat test --no-daemon
   only:
-    - gradle
+    - master
     
