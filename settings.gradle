@@ -1,4 +1,10 @@
 rootProject.name = 'CppUnitLite'  
 
-include "lib", "demoTests", "demoFailures"
+include "lib", "demoTests", "demoFailures", "demoImportedSource"
+
+sourceControl {
+    gitRepository("https://git-community.cs.odu.edu/zeil/CppUnitLite.git") {
+        producesModule("edu.odu.cs.zeil:CppUnitLite")
+    }
+}
 

@@ -1,0 +1,43 @@
+plugins {
+    id 'cpp-application'
+	id 'cpp-unit-test'
+}
+
+dependencies {
+    implementation 'edu.odu.cs.zeil:CppUnitLite:1.0'
+}
+
+
+application {
+    if (System.properties['os.name'].toLowerCase().contains('windows')
+      && System.getenv('PATH').toLowerCase().contains('mingw')) {
+        targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
+    }
+
+
+    binaries.whenElementKnown(CppExecutable) { binary ->
+	    if (toolChain instanceof GccCompatibleToolChain) {
+            def compileTask = compileTask.get()
+		    compileTask.compilerArgs.add("-std=c++11")
+		}
+    }
+}
+
+unitTest {
+    if (System.properties['os.name'].toLowerCase().contains('windows')
+      && System.getenv('PATH').toLowerCase().contains('mingw')) {
+        targetMachines = [ machines.windows.x86 ]   // For 32-bit MinGW
+    }
+
+    binaries.whenElementKnown(CppTestExecutable) { binary ->
+	    if (toolChain instanceof GccCompatibleToolChain) {
+            def compileTask = compileTask.get()
+		    compileTask.compilerArgs.add("-std=c++11")
+		}
+        if (binary.targetMachine.operatingSystemFamily.linux) {
+            binary.linkTask.get().linkerArgs.add('-pthread')
+        }
+    }
+}
+
+

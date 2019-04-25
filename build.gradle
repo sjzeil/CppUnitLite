@@ -1,0 +1,4 @@
+allprojects {
+    group = 'edu.odu.cs.zeil'
+    version = '1.0'
+}
