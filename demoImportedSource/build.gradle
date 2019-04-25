@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-    implementation 'edu.odu.cs.zeil:CppUnitLite:1.0'
+    implementation 'edu.odu.cs.zeil.CppUnitLite:lib:1.0'
 }
 
 
