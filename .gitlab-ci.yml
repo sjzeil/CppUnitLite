@@ -30,9 +30,18 @@ cygwin-job:
     - sjz-win10
   stage: build
   script:
-    - set
-    - path
     - path c:\cygwin64\bin;%path%
-    - .\gradlew.bat build
+    - .\gradlew.bat test
   only:
     - gradle
+
+mingw-job:
+  tags:
+    - sjz-win10
+  stage: build
+  script:
+    - path c:\MinGW\bin;%path%
+    - .\gradlew.bat test
+  only:
+    - gradle
+    
