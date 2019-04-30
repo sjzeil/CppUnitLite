@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <set>
 #include <sstream>
+#include <fstream>
 
 #include <chrono>
 #include <thread>
@@ -12,11 +14,7 @@
 #include <setjmp.h>
 #include <cstdlib>
 
-#ifndef __MINGW32__
-#ifndef __CYGWIN__
-#include <sys/ptrace.h>
-#endif
-#endif
+#include <unistd.h>
 
 #include "unittest.h"
 
@@ -106,23 +104,36 @@ AssertionResult::AssertionResult (bool theResult, std::string pexplain, std::str
 bool UnitTest::debuggerIsRunning()
 {
      static bool debuggerDetected = false;
-#ifndef __MINGW32__
-#ifndef __CYGWIN__
-     static bool firstTime = true;
-     if (firstTime)
-     {
-    	 firstTime = false;
-    	 if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0)
-    		 debuggerDetected = true;
-    	 else
-    		 ptrace(PTRACE_DETACH, 0, 1, 0);
-    	 if (debuggerDetected)
-    	 {
-    		 UnitTest::msg("*Debugger detected -- test time limits will be ignored.\n");
+     const string traceField = "tracerpid";
+
+     int pid = ::getpid();
+     string statusFile = string("/proc/") + std::to_string(pid) + "/status";
+     ifstream status (statusFile);
+     if (status) {
+    	 string line;
+    	 getline (status, line);
+    	 while (status) {
+    		 transform(line.begin(), line.end(), line.begin(), ::tolower);
+    		 if (line.find(traceField) != string::npos) {
+    			 string::size_type k = line.find_first_of(" \t");
+    			 if (k != string::npos) {
+    				 line = line.substr(k+1);
+    				 istringstream lineIn (line);
+    				 int pid = -1;
+    				 lineIn >> pid;
+    				 if (pid > 0) {
+    					 debuggerDetected = true;
+    				 }
+    			 }
+    			 break;
+    		 }
+    		 getline (status, line);
     	 }
      }
-#endif
-#endif
+     if (debuggerDetected)
+     {
+    	 UnitTest::msg("*Debugger detected -- test time limits will be ignored.\n");
+     }
      return debuggerDetected;
 }
 
