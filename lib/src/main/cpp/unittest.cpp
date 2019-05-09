@@ -8,7 +8,6 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
-#include <condition_variable>
 
 #include <signal.h>
 #include <setjmp.h>
@@ -318,37 +317,34 @@ void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 {
 	if (timeLimit > 0L && !debuggerIsRunning())
 	{
-		int testResult; // 1== passed, 0 == failed, -1 == erro
+		int testResult = -99; // 1== passed, 0 == failed, -1 == error
 		string testExplanation;
 
 		std::mutex m;
-		std::condition_variable cv;
 		chrono::duration<int,std::milli> limit (timeLimit);
+		chrono::duration<int,std::milli> incr (100);
+		chrono::duration<int,std::milli> elapsed (0);
 
-		std::thread t([&m, &cv, &testName, &u, &testResult, &testExplanation](){
-			testResult = runTestGuarded (testName, u, testExplanation);
-			cv.notify_one();
+		std::thread t([&m, &testName, &u, &testResult, &testExplanation](){
+			{
+				int result = runTestGuarded (testName, u, testExplanation);
+				std::unique_lock<std::mutex> l2(m);
+				testResult = result;
+			}
 		});
 		t.detach();
 
-		try {
-			std::unique_lock<std::mutex> l(m);
-			if(cv.wait_for(l, limit) == std::cv_status::timeout)
-				throw std::runtime_error("Timeout");
+		bool finished = false;
+		do {
+		    {
+		    	std::unique_lock<std::mutex> l(m);
+		    	finished = (testResult >= -1 || elapsed >= limit);
+		    	elapsed += incr;
+		    }
+		    std::this_thread::sleep_for( incr );
+		} while (!finished);
 
-			// Normal exit
-			if (testResult == 1) {
-				++numSuccesses;
-			} else if (testResult == 0) {
-				++numFailures;
-				failedTests.push_back(testName);
-				UnitTest::msg(testExplanation);
-			} else if (testResult == -1) {
-				++numErrors;
-				failedTests.push_back(testName);
-				UnitTest::msg(testExplanation);
-			}
-		} catch (std::runtime_error& e) {
+		if (testResult < -1) {
 			++numFailures;
 			failedTests.push_back(testName);
 			ostringstream out;
@@ -357,6 +353,18 @@ void UnitTest::runTest (std::string testName, TestFunction u, long timeLimit)
 					<< " milliseconds - possible infinite loop?\n";
 			UnitTest::msg(out.str() + "\n" +
 					UnitTest::msgFailed(testName, timeLimit));
+		}
+		// Normal exit
+		else if (testResult == 1) {
+			++numSuccesses;
+		} else if (testResult == 0) {
+			++numFailures;
+			failedTests.push_back(testName);
+			UnitTest::msg(testExplanation);
+		} else if (testResult == -1) {
+			++numErrors;
+			failedTests.push_back(testName);
+			UnitTest::msg(testExplanation);
 		}
 	}
 	else
