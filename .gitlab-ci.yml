@@ -8,7 +8,7 @@ current-version:
   stage: deploy
   script:
     - cp lib/src/main/public/unittest.h .
-	- cp lib/src/main/cpp/unittest.cpp
+    - cp lib/src/main/cpp/unittest.cpp .
   only:
     - master
   artifacts:
