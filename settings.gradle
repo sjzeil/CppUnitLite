@@ -1,6 +1,6 @@
 rootProject.name = 'CppUnitLite'  
 
-include "lib", "demoTests", "demoFailures", "demoImportedSource"
+include "lib", "demoTests", "demoFailures" // , "demoImportedSource"
 
 sourceControl {
     gitRepository("https://www.cs.odu.edu/~zeil/gitlab/CppUnitLite/") {
