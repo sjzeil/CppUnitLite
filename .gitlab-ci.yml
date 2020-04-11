@@ -2,19 +2,20 @@ stages:
   - build
   - deploy
  
-build-job:
+current-version:
   tags:
     - e-3208
   stage: deploy
   script:
-    - echo OK
+    - cp lib/src/main/public/unittest.h .
+	- cp lib/src/main/cpp/unittest.cpp
   only:
     - master
   artifacts:
     paths:
        - README.md
-       - lib/src/main/public/unittest.h
-       - lib/src/main/cpp/unittest.cpp
+       - unittest.h
+       - unittest.cpp
 
 linux-build:
   tags:
