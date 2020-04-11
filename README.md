@@ -167,7 +167,7 @@ would run the `testIncrement` and `longTestCase` tests.
 ### Running from Within Eclipse
 
 CppUnitLite tests can be launched from Eclipse using the C++ Unit Test
-support and the `Google Tests Runner`.   Results will be displayed in the
+support and the `TAP runner`.   Results will be displayed in the
 C/C++ Unit pane.   
 
 
@@ -230,14 +230,16 @@ easy launch points for debugging.  Some tips to consider:
 
 ### Debugging from Within Eclipse
 
-If CppUnitLite tests have been run in Eclipse using the C++ Unit Test
-support and the `Google Tests Runner`, then individual tests can be selected
-in the C/C++ Unit pane for re-execution or debugging.
-
 If a test assertion fails during Eclipse debugging, an automatic breakpoint
 will be triggered. 
   
 # What's New?
+
+# April 10, 2020
+
+Changed output format from a weak approximation of Google Test to
+the [TAP (Test Anywhere Protocol) v.12 format](https://testanything.org/spa-specification.html).
+
 
 ## July 22, 2018
 

@@ -397,7 +397,6 @@ public:
  */
 class UnitTest {
 private:
-	static bool gTestMode;
 	static long numSuccesses;
 	static long numFailures;
 	static long numErrors;
@@ -407,6 +406,11 @@ private:
 	static std::vector<std::string> callLog;
 
 public:
+	/**
+	 * Change to false to print diagnostics after the ok/not ok result.
+	 */
+	static bool diagnosticMessagesBeforeResults;
+
 	typedef void (*TestFunction)();
 
 	/**
@@ -624,7 +628,9 @@ public:
 	}
 
 
-
+	// These should be private, but I wanted to unit test them.
+	static std::string msgComment (const std::string& commentary);
+	static std::string msgFailed (unsigned testNumber, std::string testName, std::string diagnostics, unsigned timeMS);
 
 	private:
 	/**
@@ -640,22 +646,23 @@ public:
 	static std::map<std::string, BoundedTest> *tests;
 	static bool expectToFail;
 
-	static void runTest(std::string testName, TestFunction u, long timeLimitInMS);
-	static void runTestUntimed(std::string testName, TestFunction u);
-	static int runTestGuarded(std::string testName, TestFunction u,
+	static void runTest(unsigned testNumber, std::string testName, TestFunction u, long timeLimitInMS);
+	static void runTestUntimed(unsigned testNumber, std::string testName, TestFunction u);
+	static int runTestGuarded(unsigned testNumber, std::string testName, TestFunction u,
 			std::string& msg);
 
 	static bool debuggerIsRunning();
 
-	static void msgStarting (unsigned nTests);
-	static void msgRunning (std::string testName);
-	static void msgPassed (std::string testName, unsigned timeMS);
-	static void msgXPassed (std::string testName, unsigned timeMS);
-	static std::string msgFailed (std::string testName, unsigned timeMS);
-	static void msgXFailed (std::string testName, unsigned timeMS);
-	static void msgError (std::string testName, unsigned timeMS);
+	static void msgRunning (unsigned testNumber, std::string testName);
+	static void msgPassed (unsigned testNumber, std::string testName, unsigned timeMS);
+	static void msgXPassed (unsigned testNumber, std::string testName, unsigned timeMS);
+	//static std::string msgFailed (unsigned testNumber, std::string testName, unsigned timeMS);
+	//static std::string msgComment (const std::string& commentary);
+	static void msgXFailed (unsigned testNumber, std::string testName, std::string diagnostics, unsigned timeMS);
+	static void msgError (unsigned testNumber, std::string testName, std::string diagnostics, unsigned timeMS);
 	static void msgSummary ();
 	static void msg (const std::string& detailMessage);
+
 
 };
 
