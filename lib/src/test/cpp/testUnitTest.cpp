@@ -70,7 +70,6 @@ UnitTest(testCatchTestDivideByZero) {
 
 
 UnitTestTimed(testTimeout1,100) {
-#ifndef __MINGW32__
 	CppUnitLite::UnitTest::expectedToFail();
 	long k = 0;
 	for (int i = 0; i < 100000; ++i) {
@@ -79,11 +78,11 @@ UnitTestTimed(testTimeout1,100) {
 			++k;
 		}
 	}
-#else
+/*
 	std::cerr << "Timeouts cannot be detected in compilers with no thread support"
 			<< std::endl;
 	fail;
-#endif
+*/
 }
 
 // Example of overriding default limit
@@ -91,7 +90,7 @@ UnitTestTimed(testTimeout1,100) {
 #define DEFAULT_UNIT_TEST_TIME_LIMIT 1000L
 
 UnitTest(testTimeoutDefaultLimit) {
-#ifndef __MINGW32__
+
 	CppUnitLite::expectedToFail();
 	long k = 0;
 	for (int i = 0; i < 100000; ++i) {
@@ -100,11 +99,11 @@ UnitTest(testTimeoutDefaultLimit) {
 			++k;
 		}
 	}
-#else
+/*
 	std::cerr << "Timeouts cannot be detected in compilers with no thread support"
 			<< std::endl;
 	fail;
-#endif
+*/
 }
 void foo() {
 	CppUnitLite::UnitTest::logCall("foo");

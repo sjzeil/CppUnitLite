@@ -20,6 +20,14 @@
 
 #include "unittest.h"
 
+#ifdef __MINGW32__
+#ifdef __MINGW64__
+#include <debugapi.h>
+#else
+#include <winbase.h>
+#endif
+#endif
+
 using namespace CppUnitLite;
 
 std::map<std::string, UnitTest::BoundedTest> *UnitTest::tests = nullptr;
@@ -34,9 +42,11 @@ std::vector<std::string> UnitTest::callLog;
 std::vector<std::string> UnitTest::failedTests;
 
 #ifdef __amd64__
-#define breakDebugger { asm volatile ("int $3"); }
+  #define breakDebugger { asm volatile ("int $3"); }
+#elif __i386__
+  #define breakDebugger { asm volatile ("int $3"); }
 #else
-#define breakDebugger { }
+  #define breakDebugger { }
 #endif
 
 template <>
@@ -101,7 +111,14 @@ AssertionResult::AssertionResult (bool theResult, std::string pexplain, std::str
 {}
 
 
+#ifdef __MINGW32__
 
+bool UnitTest::debuggerIsRunning()
+{
+	return IsDebuggerPresent();
+}
+
+#else
 bool UnitTest::debuggerIsRunning()
 {
 	using namespace std;
@@ -139,6 +156,7 @@ bool UnitTest::debuggerIsRunning()
      }
      return debuggerDetected;
 }
+#endif
 
 
 void UnitTest::checkTest (AssertionResult assertionResult, std::string conditionStr,
@@ -151,8 +169,8 @@ void UnitTest::checkTest (AssertionResult assertionResult, std::string condition
 			std::string explanation = "Failed assertion: " + conditionStr
 					+ "\n" + assertionResult.failExplanation;
 			breakDebugger;
-			// Unit test has failed.
-			// Examine explanation for information
+			// A unit test has failed.
+			// Examine explanation and your call stack for information
 			explanation = explanation + " ";
 		}
 		if (assertionResult.failExplanation.size() > 0)
