@@ -235,7 +235,16 @@ will be triggered.
   
 # What's New?
 
-# April 10, 2020
+## April 14, 2020
+
+Added support for MinGW-W64.
+
+MinGW32 is still supported, but deprecated.
+
+Full threading support is available on MinGW-W64, so all CppUnitLite features (timed tests and debugger detection)
+are supported.
+
+## April 10, 2020
 
 Changed output format from a weak approximation of Google Test to
 the [TAP (Test Anywhere Protocol) v.12 format](https://testanything.org/spa-specification.html).
