@@ -20,12 +20,15 @@
 
 #include "unittest.h"
 
+
 #ifdef __MINGW32__
 #ifdef __MINGW64__
 #include <debugapi.h>
 #else
 #include <winbase.h>
 #endif
+#elif __CYGWIN__
+#include <w32api/debugapi.h>
 #endif
 
 using namespace CppUnitLite;
@@ -93,8 +96,8 @@ UnitTest::UnitTestFailure::UnitTestFailure (
 {
 	if (!UnitTest::expectToFail) {
 		std::ostringstream out;
-		out << "at " << fileName << ":" << lineNumber
-				<< "\n\t" << conditionStr << "\n";
+		out << fileName << ":" << lineNumber
+				<< ": \t" << conditionStr << "\n";
 		explanation = out.str();
 	} else {
 		explanation = "(expected to fail)";
@@ -112,6 +115,12 @@ AssertionResult::AssertionResult (bool theResult, std::string pexplain, std::str
 
 
 #ifdef __MINGW32__
+
+bool UnitTest::debuggerIsRunning()
+{
+	return IsDebuggerPresent();
+}
+#elif __CYGWIN__
 
 bool UnitTest::debuggerIsRunning()
 {
@@ -139,7 +148,7 @@ bool UnitTest::debuggerIsRunning()
     			 if (k != string::npos) {
     				 line = line.substr(k+1);
     				 istringstream lineIn (line);
-    				 int pid = -1;
+    				 pid = -1;
     				 lineIn >> pid;
     				 if (pid > 0) {
     					 debuggerDetected = true;
@@ -226,7 +235,6 @@ int UnitTest::runTestGuarded (unsigned testNumber, std::string testName, TestFun
 {
 	currentTest = testName;
 	expectToFail = false;
-	//UnitTest::msgRunning(testNumber, testName);
 	try {
 		signal(SIGFPE, &unitTestSignalHandler);
 		signal(SIGSEGV, &unitTestSignalHandler);
@@ -445,11 +453,11 @@ void UnitTest::runTests (int nTests, char** testNames, char* program)
 				for (const auto& utest: *tests) {
 					const std::string& utestName = utest.first;
 					std::string reducedName (1, utestName[0]);
-					for (unsigned i = 1; i < utest.first.size(); ++i)
+					for (unsigned j = 1; j < utest.first.size(); ++j)
 					{
-						if (utestName[i] >= 'A' && utestName[i] <= 'Z')
+						if (utestName[j] >= 'A' && utestName[j] <= 'Z')
 						{
-							reducedName += utestName[i];
+							reducedName += utestName[j];
 						}
 					}
 					if (testID == reducedName)
@@ -522,15 +530,10 @@ void UnitTest::logCall (const std::string& functionName)
 }
 
 
-void UnitTest::msgRunning (unsigned testNumber, std::string testName)
-{
-	using namespace std;
-	cout << "# starting " << testNumber << " - " << testName << endl;;
-}
-
 void UnitTest::msgPassed (unsigned testNumber, std::string testName, unsigned timeMS)
 {
 	using namespace std;
+	cout << flush;
 	cout << "ok " << testNumber << " - " << testName << endl;
 }
 
@@ -544,17 +547,55 @@ void UnitTest::msgXPassed (unsigned testNumber, std::string testName, unsigned t
 }
 
 
+std::string UnitTest::extractLocation (const std::string& msg)
+{
+	using namespace std;
+
+	string::size_type len = msg.size();
+	string::size_type pos1 = msg.find(".h:");
+	string::size_type pos2 = msg.find(".cpp:");
+
+	string::size_type pos = (pos1 < pos2) ? pos1 : pos2;
+	string::size_type posEnd = pos + ((pos1 < pos2) ? 3 : 5);
+	string::size_type stop = posEnd;
+
+	while (stop < len && isdigit(msg[stop])) {
+		++stop;
+	}
+	if (stop == posEnd)
+		return "";
+
+	string::size_type start = pos;
+	char c = msg[start];
+	while (start >= 0
+		&& (isalnum(c) || c == '.' || c == '_' || c == '-' || c == '/' || c == '\\'))
+	{
+		--start;
+		if (start >= 0)
+			c = msg[start];
+	}
+	if (start == pos)
+		return "";
+    string result = msg.substr(start+1, stop-start-1);
+	return result;
+}
+
 
 std::string UnitTest::msgFailed (unsigned testNumber, std::string testName,
 		std::string diagnostics, unsigned timeMS)
 {
 	using namespace std;
 
-	string diagnosticString = msgComment(diagnostics);
+	string location = extractLocation(diagnostics);
+	if (location.size() > 0)
+		location += ": error: Failed test\n";
+	string diagnosticString = location + msgComment(diagnostics);
+
+
 	string resultMsg = "not ok " + to_string(testNumber) + " - " + testName;
 
 	if (diagnosticMessagesBeforeResults)
-		return diagnosticString + "\n" + resultMsg;
+		return diagnosticString + ": \n" + resultMsg;
 	else
 		return resultMsg + "\n" + diagnosticString;
 }
