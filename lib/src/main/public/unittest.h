@@ -652,6 +652,7 @@ public:
 	static int runTestGuarded(unsigned testNumber, std::string testName, TestFunction u,
 			std::string& msg);
 
+    static std::string extractLocation (const std::string& msg);
 
 	static void msgRunning (unsigned testNumber, std::string testName);
 	static void msgPassed (unsigned testNumber, std::string testName, unsigned timeMS);
