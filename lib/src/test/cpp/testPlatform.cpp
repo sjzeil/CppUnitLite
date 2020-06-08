@@ -4,13 +4,17 @@
 
 #include <algorithm>
 #include <exception>
+#include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <chrono>
 #include <thread>
 #include <mutex>
 
+#include <filesystem>
+#include <cstdlib>
 
 #include "unittest.h"
 
@@ -36,9 +40,120 @@ UnitTest(testPlatformIdentification) {
 }
 
 
-UnitTest(testDebuggerDetection) {
-    bool inDebugger = CppUnitLite::UnitTest::debuggerIsRunning();
-    assertFalse (inDebugger);
+void cdToProjectRoot()
+{
+	using namespace std::filesystem;
+
+	path cwd = current_path();
+	cout << "# current directory is " << cwd.string() << endl;
+	path srcDir = cwd;
+	srcDir /= "src";
+	path upperLimit = "/src";
+	while ((srcDir != upperLimit) && !exists(srcDir))
+	{
+		srcDir = srcDir.parent_path().parent_path();
+		srcDir /= "src";
+	}
+	current_path(srcDir.parent_path());
+	cout << "# switching to " << current_path().string() << endl;
+}
+
+
+void clearOut (string directory)
+{
+	using namespace std::filesystem;
+    path dirPath (directory);
+
+    if (exists(dirPath) && is_directory(dirPath))
+    {
+    	remove_all(dirPath);
+    }
+    assertFalse(exists(dirPath));
+
+}
+
+void copyFiles (string testDir, string destinationDir)
+{
+	using namespace std::filesystem;
+
+
+	path testPath = testDir;
+	path destPath = destinationDir;
+	create_directories(destPath);
+	copy (testPath, destPath, copy_options::recursive);
+	path utCppPath = "src/main/cpp/unittest.cpp";
+	copy (utCppPath, destPath);
+	path utHPath = "src/main/public/unittest.h";
+	copy (utHPath, destPath);
+
+
+    assertTrue(exists(destPath));
+    path script = destPath;
+    script.append("runGdb.sh");
+    assertTrue(exists(script));
+}
+
+void runScript (string script)
+{
+	using namespace std::filesystem;
+
+#if defined(_WIN32)
+	string scriptTerminator(".bat");
+#elif defined(_WIN64)
+	string scriptTerminator(".bat");
+#elif defined(__CYGWIN__)
+	string scriptTerminator(".sh");
+#else
+	string scriptTerminator(".sh");
+#endif
+
+
+
+	path scriptpath = absolute(path(script + scriptTerminator));
+	path scriptDir = scriptpath.parent_path();
+
+	string command = scriptpath.string() + " " + scriptDir.string();
+	system(command.c_str());
+}
+
+string readFile(filesystem::path file)
+{
+	string result;
+	ifstream in (file.string());
+	string line;
+	getline(in, line);
+	while (in)
+	{
+		result += line;
+		result += "\n";
+		getline(in, line);
+	}
+	return result;
+}
+
+
+UnitTestTimed(testDebuggerDetection, 10000) {
+	cdToProjectRoot();
+	assertTrue (filesystem::exists(filesystem::path("src")));
+	assertTrue (filesystem::exists(filesystem::path("src/test/data/sampleProj1")));
+	clearOut ("build/testArea");
+	copyFiles("src/test/data/sampleProj1", "build/testArea/");
+	runScript("build/testArea/runGdb");
+	filesystem::path capturedFile = "build/testArea/captured.txt";
+	assertTrue(filesystem::exists(capturedFile));
+	string captured = readFile(capturedFile);
+	assertThat(captured, contains("# Debugger detected"));
+}
+
+UnitTestTimed(testNoDebuggerDetection, 10000) {
+	cdToProjectRoot();
+	clearOut ("build/testArea");
+	copyFiles("src/test/data/sampleProj1", "build/testArea/");
+	runScript("build/testArea/runBinary");
+	filesystem::path capturedFile = "build/testArea/captured.txt";
+	assertTrue(filesystem::exists(capturedFile));
+	string captured = readFile(capturedFile);
+	assertThat(captured, !contains("# Debugger detected"));
 }
 
 UnitTest(testThreadSupport) {

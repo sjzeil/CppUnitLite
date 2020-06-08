@@ -124,7 +124,12 @@ bool UnitTest::debuggerIsRunning()
 
 bool UnitTest::debuggerIsRunning()
 {
-	return IsDebuggerPresent();
+	bool debuggerDetected = IsDebuggerPresent();
+    if (debuggerDetected)
+    {
+   	 UnitTest::msg("# Debugger detected -- test time limits will be ignored.\n");
+    }
+    return debuggerDetected;
 }
 
 #else
@@ -161,7 +166,7 @@ bool UnitTest::debuggerIsRunning()
      }
      if (debuggerDetected)
      {
-    	 UnitTest::msg("*Debugger detected -- test time limits will be ignored.\n");
+    	 UnitTest::msg("# Debugger detected -- test time limits will be ignored.\n");
      }
      return debuggerDetected;
 }

@@ -56,8 +56,10 @@ UnitTest(testCommentaryDirtyEnding) {
 
 UnitTest(testFailureMsg) {
     string msg1 = "# something\nelse\n# happened\nx";
-    string expected1 = "# diag\nnot ok 42 - smallTest";
+    string expected1 = "# diag";
+    string expected2 = "\nnot ok 42 - smallTest";
     string result1 = CppUnitLite::UnitTest::msgFailed(42, "smallTest", "diag", 499);
-	assertThat (result1, isEqualTo(expected1));
+	assertThat (result1, contains(expected1));
+	assertThat (result1, contains(expected2));
 }
 
