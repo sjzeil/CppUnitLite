@@ -27,7 +27,7 @@ jobs:
       - name: environment check
         run: |
           g++ --version
-		  ls -R
+          ls -R
       - name: gradle test
         run: |
           ./gradlew lib:build
