@@ -1,5 +1,3 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
 # Controls when the action will run. 
@@ -30,11 +28,13 @@ jobs:
         run: |
           ./gradlew lib:build
           ./gradlew demoTests:test
+          find lib/build/tmp/ -name options.txt -print -exec cat {} \;
+          find lib/build/tmp/ -name output.txt -print -exec cat {} \;
       - name: gradle build
         run: |
           ./gradlew demoTests:build
-	  - name: diagnose
-	    if: ${{ failure() }}
-	    run: |
-		  find demoTests/build/tmp/ -name options.txt -print -exec cat {} \;
-		  find demoTests/build/tmp/ -name output.txt -print -exec cat {} \;
+      - name: diagnose
+        if: ${{ failure() }}
+        run: |
+          find demoTests/build/tmp/ -name options.txt -print -exec cat {} \;
+          find demoTests/build/tmp/ -name output.txt -print -exec cat {} \;
