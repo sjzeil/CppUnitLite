@@ -28,5 +28,5 @@ jobs:
       # Runs commands 
       - name: gradle build
         run: |
-          apt-get install libpthread-stubs0-dev
+          sudo apt-get install libpthread-stubs0-dev
           ./gradlew build
