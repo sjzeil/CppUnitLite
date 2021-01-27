@@ -29,12 +29,8 @@ jobs:
           g++ --version
       - name: installation
         run: |
-          sudo apt update
-          sudo update-alternatives --remove-all gcc 
-          sudo update-alternatives --remove-all g++
-          sudo apt install g++-9
-          sudo update-alternatives --set gcc /usr/bin/gcc-9
-          sudo update-alternatives --set g++ /usr/bin/g++-9
+          sudo apt-get update
+          sudo apt-get install -y g++-9
       - name: gradle test
         run: |
           ./gradlew lib:build
