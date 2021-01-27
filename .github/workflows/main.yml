@@ -16,7 +16,7 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04-gcc-9
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -27,7 +27,14 @@ jobs:
       - name: environment check
         run: |
           g++ --version
-          ls -R
+	  - name: installation
+	    run: |
+		  sudo apt update
+		  sudo update-alternatives --remove-all gcc 
+          sudo update-alternatives --remove-all g++
+		  sudo apt install g++-9
+		  sudo update-alternatives --set gcc /usr/bin/gcc-9
+		  sudo update-alternatives --set g++ /usr/bin/g++-9
       - name: gradle test
         run: |
           ./gradlew lib:build
