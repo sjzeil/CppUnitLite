@@ -572,11 +572,11 @@ std::string UnitTest::extractLocation (const std::string& msg)
 
 	string::size_type start = pos;
 	char c = msg[start];
-	while (start >= 0
+	while (start < pos
 		&& (isalnum(c) || c == '.' || c == '_' || c == '-' || c == '/' || c == '\\'))
 	{
 		--start;
-		if (start >= 0)
+		if (start < pos)
 			c = msg[start];
 	}
 	if (start == pos)
