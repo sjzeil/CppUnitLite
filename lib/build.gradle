@@ -1,9 +1,10 @@
 plugins {
     id 'cpp-library'
 	id 'cpp-unit-test'
-	id "org.ysb33r.doxygen" version "0.5"	
+	//id "org.ysb33r.doxygen" version "0.5"	
 }
 
+/*
 doxygen {
     generate_html true
 
@@ -12,7 +13,7 @@ doxygen {
     source new File(projectDir,'src/main/cpp')
     source new File(projectDir,'src/main/public')
 }
-
+*/
 
 library {
     if (System.properties['os.name'].toLowerCase().contains('windows')
